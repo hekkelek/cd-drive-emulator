@@ -159,13 +159,16 @@ DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
   uint32_t alignedAddr;
 #endif
 
-  if(BSP_SD_ReadBlocks_DMA((uint32_t*)buff,
+//  if(BSP_SD_ReadBlocks_DMA((uint32_t*)buff,
+    if(BSP_SD_ReadBlocks( (uint32_t*)buff,
                            (uint32_t) (sector),
-                           count) == MSD_OK)
+//                           count) == MSD_OK)
+                           count, SD_TIMEOUT) == MSD_OK)
   {
     /* Wait that the reading process is completed or a timeout occurs */
     timeout = HAL_GetTick();
-    while((ReadStatus == 0) && ((HAL_GetTick() - timeout) < SD_TIMEOUT))
+//    while((ReadStatus == 0) && ((HAL_GetTick() - timeout) < SD_TIMEOUT))
+    ReadStatus = 1;  //FIXME: töröld
     {
     }
     /* incase of a timeout return error */
@@ -227,14 +230,17 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
   SCB_CleanDCache_by_Addr((uint32_t*)alignedAddr, count*BLOCKSIZE + ((uint32_t)buff - alignedAddr));
 #endif
 
-  if(BSP_SD_WriteBlocks_DMA((uint32_t*)buff,
+//  if(BSP_SD_WriteBlocks_DMA((uint32_t*)buff,
+  if(BSP_SD_WriteBlocks( (uint32_t*)buff,
                            (uint32_t) (sector),
-                           count) == MSD_OK)
+//                           count) == MSD_OK)
+                           count, SD_TIMEOUT) == MSD_OK)
   {
     /* Wait that the writing process is completed or a timeout occurs */
 
     timeout = HAL_GetTick();
-    while((WriteStatus == 0) && ((HAL_GetTick() - timeout) < SD_TIMEOUT))
+//    while((WriteStatus == 0) && ((HAL_GetTick() - timeout) < SD_TIMEOUT))
+    WriteStatus = 1;  //FIXME: töröld
     {
     }
     /* incase of a timeout return error */
