@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=D:/SEM/cd-drive-emulator/firmware/Inc
+HeaderPath=Q:/Github/cd-drive-emulator/firmware/Inc
 HeaderFiles=ffconf.h;bsp_driver_sd.h;fatfs.h;stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;sd_diskio.h;
-SourcePath=D:/SEM/cd-drive-emulator/firmware/Src
+SourcePath=Q:/Github/cd-drive-emulator/firmware/Src
 SourceFiles=ffconf.h;bsp_driver_sd.h;fatfs.h;stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;bsp_driver_sd.c;fatfs.c;stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;sd_diskio.c;
 
 [PreviousLibFiles]

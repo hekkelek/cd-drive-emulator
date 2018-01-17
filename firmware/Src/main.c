@@ -58,6 +58,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2S_HandleTypeDef hi2s3;
+DMA_HandleTypeDef hdma_spi3_tx;
 
 SD_HandleTypeDef hsd;
 
@@ -69,6 +70,7 @@ SD_HandleTypeDef hsd;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2S3_Init(void);
 static void MX_SDIO_SD_Init(void);
 
@@ -82,7 +84,8 @@ FATFS SDCard;
 FIL CDFile;
 
 U8 au8Sector[ 2352 ];  // temporary storage
-U8 au8PitsnLands[ 2352 ];  // CD drive data
+U8 au8PitsnLands[ 23*2352 ];  // CD drive data: 23 sectors -- 200 rpm = 3.3333 rps, and 1x means 75 sectors/sec ==> 75/(10/3) = 22.5 sectors/revolution
+//TODO: implement 2x mode too
 
 /* USER CODE END 0 */
 
@@ -111,12 +114,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2S3_Init();
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
   U16 u16ReadBytes;
+  U16 u16Sectors;
   FRESULT res;
   
 //  disk_initialize( 0 );  // Initialize SD card
@@ -136,14 +141,16 @@ int main(void)
       return -1;
   }
 
-//  for( u16ReadBytes = 2352; u16ReadBytes == 2352;  )
-//  {
+  for( u16Sectors = 0; u16Sectors < 23; u16Sectors++ )
+  {
       res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
-      BinConvert_CDSector2352( au8Sector, au8PitsnLands );
-//  }
+      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sectors*2352]) );
+  }
 
   f_close( &CDFile );
 
+  HAL_I2S_Transmit_DMA( &hi2s3, (U16*)au8PitsnLands, 23*2352/2 );  // start CD image stream
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -254,6 +261,21 @@ static void MX_SDIO_SD_Init(void)
   hsd.Init.BusWide = SDIO_BUS_WIDE_1B;
   hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_DISABLE;
   hsd.Init.ClockDiv = 255;
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
 
 }
 
