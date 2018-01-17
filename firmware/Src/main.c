@@ -121,8 +121,10 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   U16 u16ReadBytes;
-  U16 u16Sectors;
+  U16 u16Sector;
+  U32 u32CDSector = 0;
   FRESULT res;
+  BOOL bDirection = TRUE;  // TRUE == from outer tracks to inner tracks
   
 //  disk_initialize( 0 );  // Initialize SD card
   u16ReadBytes = BSP_SD_Init();
@@ -141,15 +143,19 @@ int main(void)
       return -1;
   }
 
-  for( u16Sectors = 0; u16Sectors < 23; u16Sectors++ )
+  for( u16Sector = 0; u16Sector < 23; u16Sector++ )
   {
       res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
-      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sectors*2352]) );
+      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sector*2352]) );
+      u32CDSector += u16ReadBytes;
   }
 
-  f_close( &CDFile );
-
   HAL_I2S_Transmit_DMA( &hi2s3, (U16*)au8PitsnLands, 23*2352/2 );  // start CD image stream
+  
+  u16Sector = 0;
+  u32CDSector = 0;
+  res = f_lseek( &CDFile, 0 );
+  bDirection = FALSE;
   
   /* USER CODE END 2 */
 
@@ -160,7 +166,31 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+    U32 u32Delay = HAL_GetTick() + 10;  // 10 ms
+    while( HAL_GetTick() < u32Delay );  // wait for timeout
+    
+    res = f_lseek( &CDFile, u32CDSector*2352 );
+    res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
 
+    if( u16ReadBytes == 2352 )
+      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sector*2352]) );
+    
+    if( ( u16ReadBytes != 2352 ) || ( u32CDSector == 0 ) )  // end/begining of file
+    {
+      bDirection = ( bDirection == TRUE ) ? FALSE : TRUE;
+    }
+
+    if( bDirection == TRUE )
+    {
+      u32CDSector++;
+      if( ++u16Sector >= 23 ) u16Sector = 0;  // increment sector index with rollover
+    }
+    else
+    {
+      u32CDSector--;
+      if( --u16Sector >= 23 ) u16Sector = 22;  // decrement sector index with rollover
+    }
+    
   }
   /* USER CODE END 3 */
 
