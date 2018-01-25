@@ -40,6 +40,7 @@
 //--------------------------------------------------------------------------------------------------------/
 void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
+void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 
 
@@ -101,6 +102,20 @@ void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 }
 
 /*! *******************************************************************
+ * \brief  Encodes the F1 frames to F2 frames using CIRC
+ * \param  pu8ArrayToConvert: array of 2352 bytes!
+ * \param  pu8ArrayResult: array of 3234 bytes!
+ * \return -
+ *********************************************************************/
+void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
+{
+    //TODO: make 24-bit words from input
+    //TODO: C2 encoding: RS(28,24)
+    //TODO: cross-interleaving
+    //TODO: C1 encoding: RS(32,28)
+}
+
+/*! *******************************************************************
  * \brief  NRZI encoding of channel frames
  * \param  pu8ArrayToConvert: array of 7203 bytes!
  * \param  pu8ArrayResult: array of 7203 bytes!
@@ -137,15 +152,19 @@ void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  *********************************************************************/
 void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
+    static U8 au8CIRCEncoded[ 3234 ];  // temporary array; won't needed after optimization
+
+    //NOTE: these two can be merged into one optimized function
     ScrambleSector( pu8ArrayToConvert, pu8ArrayToConvert );  // scramble sector in place
     MakeF1Sector( pu8ArrayToConvert, pu8ArrayToConvert );  // make F1 frames from sector in place
 
-    //TODO: CIRC encoding
+    CIRCEncoder( pu8ArrayToConvert, au8CIRCEncoded );
+
     //TODO: add control byte
     //TODO: EFM encoding + sync header + merging bits
 
     //EncodeNRZI( pu8ArrayToConvert, pu8ArrayResult );  // NRZI encoding of channel frames
-    memcpy( pu8ArrayResult, pu8ArrayToConvert, 2352 );  //FIXME: debug, töröld
+    memcpy( pu8ArrayResult, au8CIRCEncoded, 3234 );  //FIXME: debug, delete
 }
 
 
