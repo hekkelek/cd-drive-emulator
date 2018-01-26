@@ -33,6 +33,9 @@
 //--------------------------------------------------------------------------------------------------------/
 // Globális változók
 //--------------------------------------------------------------------------------------------------------/
+U8 gau8CIRCDelayLines1[ 2 ][ 12 ];   // delay line for CIRC encoder
+U8 gau8CIRCDelayLines2[ 28 ][ 28 ];  // delay line for CIRC encoder
+U8 gau8CIRCDelayLines3[ 16 ];        // delay line for CIRC encoder
 
 
 //--------------------------------------------------------------------------------------------------------/
@@ -40,6 +43,8 @@
 //--------------------------------------------------------------------------------------------------------/
 void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
+void C2Encoder( U8* pu8TempFrame );
+void C1Encoder( U8* pu8TempFrame );
 void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 
@@ -102,17 +107,129 @@ void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 }
 
 /*! *******************************************************************
+ * \brief  RS(28,24) encoder
+ * \param  pu8TempFrame: array of 28 bytes.
+ * \return -
+ *********************************************************************/
+void C2Encoder( U8* pu8TempFrame )
+{
+    //FIXME: implement encoder
+    pu8TempFrame[12] = 0;
+    pu8TempFrame[13] = 0;
+    pu8TempFrame[14] = 0;
+    pu8TempFrame[15] = 0;
+}
+
+/*! *******************************************************************
+ * \brief  RS(32,28) encoder
+ * \param  pu8TempFrame: array of 32 bytes.
+ * \return -
+ *********************************************************************/
+void C1Encoder( U8* pu8TempFrame )
+{
+    //FIXME: implement encoder
+    pu8TempFrame[28] = 0;
+    pu8TempFrame[29] = 0;
+    pu8TempFrame[30] = 0;
+    pu8TempFrame[31] = 0;
+}
+
+/*! *******************************************************************
  * \brief  Encodes the F1 frames to F2 frames using CIRC
  * \param  pu8ArrayToConvert: array of 2352 bytes!
  * \param  pu8ArrayResult: array of 3234 bytes!
  * \return -
  *********************************************************************/
-void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
+void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )  //TODO: needs optimization
 {
-    //TODO: make 24-bit words from input
-    //TODO: C2 encoding: RS(28,24)
-    //TODO: cross-interleaving
-    //TODO: C1 encoding: RS(32,28)
+    static U8 au8TempFrame[ 32 ];  // probably can be removed after optimization
+    U8  u8Index;
+    U8  u8InnerIndex;
+    U16 u16FrameNum;
+    U8  u8Temp;
+
+    for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
+    {
+        // constructing temporary frame
+        au8TempFrame[0]  = gau8CIRCDelayLines1[ 1 ][ 0 ];
+        au8TempFrame[1]  = gau8CIRCDelayLines1[ 1 ][ 1 ];
+        au8TempFrame[2]  = gau8CIRCDelayLines1[ 1 ][ 4 ];
+        au8TempFrame[3]  = gau8CIRCDelayLines1[ 1 ][ 5 ];
+        au8TempFrame[4]  = gau8CIRCDelayLines1[ 1 ][ 8 ];
+        au8TempFrame[5]  = gau8CIRCDelayLines1[ 1 ][ 9 ];
+        au8TempFrame[6]  = gau8CIRCDelayLines1[ 1 ][ 2 ];
+        au8TempFrame[7]  = gau8CIRCDelayLines1[ 1 ][ 3 ];
+        au8TempFrame[8]  = gau8CIRCDelayLines1[ 1 ][ 6 ];
+        au8TempFrame[9]  = gau8CIRCDelayLines1[ 1 ][ 7 ];
+        au8TempFrame[10] = gau8CIRCDelayLines1[ 1 ][ 10 ];
+        au8TempFrame[11] = gau8CIRCDelayLines1[ 1 ][ 11 ];
+        au8TempFrame[12] = 0;  // C2 parity byte
+        au8TempFrame[13] = 0;  // C2 parity byte
+        au8TempFrame[14] = 0;  // C2 parity byte
+        au8TempFrame[15] = 0;  // C2 parity byte
+        au8TempFrame[16] = pu8ArrayToConvert[ (24*u16FrameNum) + 4 ];
+        au8TempFrame[17] = pu8ArrayToConvert[ (24*u16FrameNum) + 5 ];
+        au8TempFrame[18] = pu8ArrayToConvert[ (24*u16FrameNum) + 12 ];
+        au8TempFrame[19] = pu8ArrayToConvert[ (24*u16FrameNum) + 13 ];
+        au8TempFrame[20] = pu8ArrayToConvert[ (24*u16FrameNum) + 20 ];
+        au8TempFrame[21] = pu8ArrayToConvert[ (24*u16FrameNum) + 21 ];
+        au8TempFrame[22] = pu8ArrayToConvert[ (24*u16FrameNum) + 6 ];
+        au8TempFrame[23] = pu8ArrayToConvert[ (24*u16FrameNum) + 7 ];
+        au8TempFrame[24] = pu8ArrayToConvert[ (24*u16FrameNum) + 14 ];
+        au8TempFrame[25] = pu8ArrayToConvert[ (24*u16FrameNum) + 15 ];
+        au8TempFrame[26] = pu8ArrayToConvert[ (24*u16FrameNum) + 22 ];
+        au8TempFrame[27] = pu8ArrayToConvert[ (24*u16FrameNum) + 23 ];
+
+        // C2 encoding: RS(28,24)
+        C2Encoder( au8TempFrame );
+
+        // second set of delay lines
+        for( u8Index = 0; u8Index < 28; u8Index++ )
+        {
+            for( u8InnerIndex = 1; u8InnerIndex <= u8Index; u8InnerIndex++ )
+            {
+                gau8CIRCDelayLines2[ u8Index ][ u8InnerIndex-1 ] = gau8CIRCDelayLines2[ u8Index ][ u8InnerIndex ];
+            }
+            gau8CIRCDelayLines2[ u8Index ][ u8Index ] = au8TempFrame[ u8Index ];
+        }
+
+        // constructing temporary frame
+        for( u8Index = 0; u8Index < 28; u8Index++ )  //TODO: could be simplified if gau8CIRCDelayLines2[][] had their array indexes the other way
+        {
+            au8TempFrame[ u8Index ] = gau8CIRCDelayLines2[ u8Index ][ 0 ];
+        }
+
+        // C1 encoding: RS(32,28)
+        C1Encoder( au8TempFrame );
+
+        // third set of delay lines
+        for( u8Index = 0; u8Index < 16; u8Index++ )
+        {
+            u8Temp = au8TempFrame[ 2*u8Index ];
+            au8TempFrame[ 2*u8Index ] = gau8CIRCDelayLines3[ u8Index ];
+            gau8CIRCDelayLines3[ u8Index ] = u8Temp;
+        }
+
+        // invert parity bytes
+        au8TempFrame[ 12 ] = ~au8TempFrame[ 12 ];
+        au8TempFrame[ 13 ] = ~au8TempFrame[ 13 ];
+        au8TempFrame[ 14 ] = ~au8TempFrame[ 14 ];
+        au8TempFrame[ 15 ] = ~au8TempFrame[ 15 ];
+        au8TempFrame[ 28 ] = ~au8TempFrame[ 28 ];
+        au8TempFrame[ 29 ] = ~au8TempFrame[ 29 ];
+        au8TempFrame[ 30 ] = ~au8TempFrame[ 30 ];
+        au8TempFrame[ 31 ] = ~au8TempFrame[ 31 ];
+
+        // first set of delay lines
+        for( u8Index = 0; u8Index < 12; u8Index++ )
+        {
+            gau8CIRCDelayLines1[ 1 ][ u8Index ] = gau8CIRCDelayLines1[ 0 ][ u8Index ];
+            gau8CIRCDelayLines1[ 0 ][ u8Index ] = pu8ArrayToConvert[ (24*u16FrameNum) + ((u8Index/4) * 8 ) + (u8Index%4) ];  // magic: u8Index/4 will be rounded downwards
+        }
+
+        // frame is finished, write out
+        memcpy( &(pu8ArrayResult[(33*u16FrameNum)]), au8TempFrame, 32 );  //NOTE: omits the place needed by subcode
+    }
 }
 
 /*! *******************************************************************
@@ -169,8 +286,14 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 
 
 /*! *******************************************************************
- * \brief
- * \param
- * \return
+ * \brief  Init the library
+ * \param  -
+ * \return -
  *********************************************************************/
+void BinConvert_Init( void )
+{
+    memset( gau8CIRCDelayLines1, 0, sizeof(gau8CIRCDelayLines1) );
+    memset( gau8CIRCDelayLines2, 0, sizeof(gau8CIRCDelayLines2) );
+}
 
+/******************************<EOF>**********************************/

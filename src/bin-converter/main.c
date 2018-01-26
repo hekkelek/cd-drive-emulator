@@ -7,7 +7,7 @@
 FILE* frp, *fwp;
 
 U8 u8Sector[ 2352 ];
-U8 u8PitsnLands[ 2352 ];
+U8 u8PitsnLands[ 7203 ];
 
 int main()
 {
@@ -30,7 +30,7 @@ int main()
         if( u16ReadBytes < 2352 )
             continue;
         BinConvert_CDSector2352( u8Sector, u8PitsnLands );
-        fwrite( u8PitsnLands, sizeof( U8 ), 2352, fwp );
+        fwrite( u8PitsnLands, sizeof( U8 ), 3234, fwp );
     }
 
     fclose( frp );
