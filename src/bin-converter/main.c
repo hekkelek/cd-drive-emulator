@@ -15,6 +15,8 @@ int main()
 
     printf("CD binary converter test\n");
 
+    BinConvert_Init();
+
     frp = fopen( "padtest.bin", "rb" );
     fwp = fopen( "output.bin","wb");
 
