@@ -3,3 +3,5 @@
 /src/bin-converter/obj
 /firmware/EWARM/CD_emulator
 /firmware/EWARM/settings
+/helpertools/efmtablegen/obj
+/helpertools/efmtablegen/bin
