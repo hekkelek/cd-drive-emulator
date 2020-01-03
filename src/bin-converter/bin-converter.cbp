@@ -27,6 +27,10 @@
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="reedsolomon.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="reedsolomon.h" />
 		<Unit filename="types.h" />
 		<Extensions>
 			<code_completion />
