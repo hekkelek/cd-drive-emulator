@@ -70,7 +70,6 @@ const U8 cau8IdxofAlpha[ 256 ] = {   0,   0,   1,  25,   2,  50,  26, 198,   3, 
                                    203,  89,  95, 176, 156, 169, 160,  81,  11, 245,  22, 235, 122, 117,  44, 215,
                                     79, 174, 213, 233, 230, 231, 173, 232, 116, 214, 244, 234, 168,  80,  88, 175 };
 
-#warning "ˇˇI'm not sure about these values."
 const U8 cau8RS2824Generator[ 5 ] = { 1, 30, 216, 231, 116 };  //!< Generator polynomial of the RS(28,24) encoder
 const U8 cau8RS3228Generator[ 5 ] = { 1, 30, 216, 231, 116 };  //!< Generator polynomial of the RS(32,28) encoder
 
@@ -146,9 +145,8 @@ void ReedSolomon_AddRS2824( U8* pu8TempFrame )
     U8 u8Multiplier;
     U8 u8Index, u8InnerIdx;
 
-    memcpy( u8Temp, pu8TempFrame, 12 );
-    memcpy( &(u8Temp[12]), &(pu8TempFrame[16]), 12 );
-    memset( &(u8Temp[24]), 0, 4 );
+    memset( u8Temp, 0, sizeof( u8Temp ) );
+    memcpy( u8Temp, pu8TempFrame, sizeof( u8Temp ) );
 
     // Polynomial division based parity calculation
     for( u8Index = 0; u8Index < 24; u8Index++ )
@@ -157,7 +155,7 @@ void ReedSolomon_AddRS2824( U8* pu8TempFrame )
 
         if( 0 == u8Multiplier )
         {
-            continue;
+          continue;
         }
 
         for( u8InnerIdx = 0; u8InnerIdx < 5; u8InnerIdx++ )
@@ -166,10 +164,10 @@ void ReedSolomon_AddRS2824( U8* pu8TempFrame )
         }
     }
 
-    pu8TempFrame[12] = u8Temp[ 24 ];
-    pu8TempFrame[13] = u8Temp[ 25 ];
-    pu8TempFrame[14] = u8Temp[ 26 ];
-    pu8TempFrame[15] = u8Temp[ 27 ];
+    pu8TempFrame[ 24 ] = u8Temp[ 24 ];
+    pu8TempFrame[ 25 ] = u8Temp[ 25 ];
+    pu8TempFrame[ 26 ] = u8Temp[ 26 ];
+    pu8TempFrame[ 27 ] = u8Temp[ 27 ];
 }
 
 /*! *******************************************************************

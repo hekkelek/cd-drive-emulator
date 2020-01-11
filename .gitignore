@@ -5,3 +5,7 @@
 /firmware/EWARM/settings
 /helpertools/efmtablegen/obj
 /helpertools/efmtablegen/bin
+/helpertools/crctest/*.asv
+/helpertools/crctest/bin
+/helpertools/crctest/obj
+/helpertools/crctest/crctest.depend
