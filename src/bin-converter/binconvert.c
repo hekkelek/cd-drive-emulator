@@ -109,11 +109,13 @@ static void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
     {
         u8Temp = 0;
 
-        for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //TODO: there is a faster way: generate a 2340-byte long table using this LFSR, then just XOR all the bytes/words
+        for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //NOTE: there is a faster way: generate a 2340-byte long table using this LFSR, then just XOR all the bytes/words
         {
             u16LFSR = (u16LFSR^(u16LFSR>>1))>>1;
-            if( u16LFSR & 1<<1 ) u16LFSR ^= (1<<15);
-            if( u16LFSR & 1<<0 ) u16LFSR ^= ((1<<15) | (1<<14));
+            if( u16LFSR & 1<<1 )
+              u16LFSR ^= (1<<15);
+            if( u16LFSR & 1<<0 )
+              u16LFSR ^= ((1<<15) | (1<<14));
 
             //u8Temp |= ((pu8ArrayToConvert[ u16Index ]&&(0x01<<u8BitIndex))^((u16LFSR&0x8000)>>15))<<u8BitIndex;
         }
@@ -135,6 +137,7 @@ static void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
     U8  u8ByteIndex;
     U8  u8Temp;
 
+    #warning "This function may be wrong. ECMA-130 is not too clear about this step."
     for( u16FrameIndex = 1; u16FrameIndex < CD_RAW_SECTOR_SIZE/24; u16FrameIndex++ )  // 98 F1 frames, first frame is sync, it won't be scrambled
     {
         for( u8ByteIndex = 0; u8ByteIndex < 24; u8ByteIndex += 2 )  // TODO: it would be faster using 32-bit masking and shifting
@@ -309,12 +312,13 @@ static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
     static U8 au8CIRCEncoded[ 3234 ];  // temporary array; won't needed after optimization
+    static U8 au8F1Frames[ CD_RAW_SECTOR_SIZE ];
 
     //NOTE: these two can be merged into one optimized function
     ScrambleSector( pu8ArrayToConvert, pu8ArrayToConvert );  // scramble sector in place
-    MakeF1Sector( pu8ArrayToConvert, pu8ArrayToConvert );  // make F1 frames from sector in place
+    MakeF1Sector( pu8ArrayToConvert, au8F1Frames );  // make F1 frames from sector
 
-    CIRCEncoder( pu8ArrayToConvert, au8CIRCEncoded );
+    CIRCEncoder( au8F1Frames, au8CIRCEncoded );
 
     AddSubcode( au8CIRCEncoded );
 

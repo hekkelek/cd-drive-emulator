@@ -13,6 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="../../src/bin-converter" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -31,6 +32,11 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="../../src/bin-converter/reedsolomon.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../src/bin-converter/reedsolomon.h" />
+		<Unit filename="../../src/bin-converter/types.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>

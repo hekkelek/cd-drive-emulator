@@ -17,7 +17,7 @@ int main()
 
     BinConvert_Init();
 
-    frp = fopen( "padtest.bin", "rb" );
+    frp = fopen( "testsound.bin", "rb" );
     fwp = fopen( "output.bin","wb");
 
     if( !frp )
