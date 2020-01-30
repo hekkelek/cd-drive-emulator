@@ -30,9 +30,11 @@ int main()
     {
         u16ReadBytes = fread( u8Sector, sizeof( U8 ), 2352, frp );
         if( u16ReadBytes < 2352 )
-            continue;
+        {
+            break;
+        }
         BinConvert_CDSector2352( u8Sector, u8PitsnLands );
-        fwrite( u8PitsnLands, sizeof( U8 ), 3234, fwp );
+        fwrite( u8PitsnLands, sizeof( U8 ), sizeof( u8PitsnLands ), fwp );
     }
 
     fclose( frp );

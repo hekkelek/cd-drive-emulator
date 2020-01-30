@@ -12,8 +12,13 @@ int main()
 {
   uint32_t u32Index;
   uint8_t  au8Msg28[ 28 ];
+  uint8_t  au8Msg32[ 32 ];
   BOOL     bIsOK = TRUE;
-  //uint8_t  au8Msg32[ 32 ];
+
+  memset( au8Msg32, 0, sizeof( au8Msg32 ) );
+  memcpy( au8Msg32, cau8EncodedMessage[ 0 ], 12 );  // first part
+  memcpy( &au8Msg32[16], &cau8EncodedMessage[ 0 ][12], 12 );  // second part
+  ReedSolomon_AddRS3228( au8Msg32 );
 
   memset( au8Msg28, 0, sizeof( au8Msg28 ) );
   memcpy( au8Msg28, cau8EncodedMessage[ 0 ], 24 );  // don't copy the parity  bytes

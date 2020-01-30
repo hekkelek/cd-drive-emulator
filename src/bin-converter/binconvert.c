@@ -26,6 +26,7 @@
 #define CD_FRAME_SIZE         3234u
 #define CD_CHANNEL_FRAME_SIZE 7203u
 
+
 //--------------------------------------------------------------------------------------------------------/
 // Types
 //--------------------------------------------------------------------------------------------------------/
@@ -73,9 +74,9 @@ const U32 cau32EFMCodeTable[ 256 ] = { 0x48800000, 0x84000000, 0x90800000, 0x888
 //--------------------------------------------------------------------------------------------------------/
 // Global variables
 //--------------------------------------------------------------------------------------------------------/
-U8 gau8CIRCDelayLines1[ 2 ][ 12 ];   // delay line for CIRC encoder
+U8 gau8CIRCDelayLines1[ 2 ][ 24 ];   // delay line for CIRC encoder
 U8 gau8CIRCDelayLines2[ 28 ][ 28 ];  // delay line for CIRC encoder
-U8 gau8CIRCDelayLines3[ 16 ];        // delay line for CIRC encoder
+U8 gau8CIRCDelayLines3[ 32 ];        // delay line for CIRC encoder
 
 
 //--------------------------------------------------------------------------------------------------------/
@@ -100,29 +101,27 @@ static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
  *********************************************************************/
 static void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    U16 u16Index;
-    U8  u8BitIndex;
-    U16 u16LFSR = 0x8001;
-    U8  u8Temp;
+  U16 u16Index;
+  U8  u8BitIndex;
+  U16 u16LFSR = 0x8001;
+  U8  u8Temp;
 
-    for( u16Index = 12; u16Index < CD_RAW_SECTOR_SIZE; u16Index++ )  // from byte 12 to 2351
+  for( u16Index = 12; u16Index < CD_RAW_SECTOR_SIZE; u16Index++ )  // from byte 12 to 2351
+  {
+    u8Temp = 0;
+
+    for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //NOTE: there is a faster way: generate a 2340-byte long table using this LFSR, then just XOR all the bytes/words
     {
-        u8Temp = 0;
-
-        for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //NOTE: there is a faster way: generate a 2340-byte long table using this LFSR, then just XOR all the bytes/words
-        {
-            u16LFSR = (u16LFSR^(u16LFSR>>1))>>1;
-            if( u16LFSR & 1<<1 )
-              u16LFSR ^= (1<<15);
-            if( u16LFSR & 1<<0 )
-              u16LFSR ^= ((1<<15) | (1<<14));
-
-            //u8Temp |= ((pu8ArrayToConvert[ u16Index ]&&(0x01<<u8BitIndex))^((u16LFSR&0x8000)>>15))<<u8BitIndex;
-        }
-        u8Temp = (pu8ArrayToConvert[ u16Index ]) ^ (u16LFSR&0x00FF);
-
-        pu8ArrayResult[ u16Index ] = u8Temp;
+      u16LFSR = (u16LFSR^(u16LFSR>>1))>>1;
+      if( u16LFSR & 1<<1 )
+        u16LFSR ^= (1<<15);
+      if( u16LFSR & 1<<0 )
+        u16LFSR ^= ((1<<15) | (1<<14));
     }
+    u8Temp = (pu8ArrayToConvert[ u16Index ]) ^ (u16LFSR&0x00FF);
+
+    pu8ArrayResult[ u16Index ] = u8Temp;
+  }
 }
 
 /*! *******************************************************************
@@ -130,23 +129,19 @@ static void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  * \param  pu8ArrayToConvert: array of 2352 bytes!
  * \param  pu8ArrayResult: array of 2352 bytes!
  * \return -
+ * \note   Supports remapping in place.
  *********************************************************************/
 static void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    U16 u16FrameIndex;
-    U8  u8ByteIndex;
-    U8  u8Temp;
+  U32  u32WordIndex;
+  U32* pu32Src = (U32*)pu8ArrayToConvert;
+  U32* pu32Dst = (U32*)pu8ArrayResult;
 
-    #warning "This function may be wrong. ECMA-130 is not too clear about this step."
-    for( u16FrameIndex = 1; u16FrameIndex < CD_RAW_SECTOR_SIZE/24; u16FrameIndex++ )  // 98 F1 frames, first frame is sync, it won't be scrambled
-    {
-        for( u8ByteIndex = 0; u8ByteIndex < 24; u8ByteIndex += 2 )  // TODO: it would be faster using 32-bit masking and shifting
-        {
-            u8Temp = pu8ArrayToConvert[ 24*u16FrameIndex + u8ByteIndex+1 ];
-            pu8ArrayResult[ (24*u16FrameIndex + (u8ByteIndex))+1 ] = pu8ArrayToConvert[ 24*u16FrameIndex + u8ByteIndex ];
-            pu8ArrayResult[ (24*u16FrameIndex + (u8ByteIndex)) ] = u8Temp;
-        }
-    }
+  // swap even and odd bytes
+  for( u32WordIndex = 0; u32WordIndex < CD_RAW_SECTOR_SIZE/sizeof( U32 ); u32WordIndex++ )
+  {
+    pu32Dst[ u32WordIndex ] = ( ((pu32Src[ u32WordIndex ])&0x00FF00FF)<<8 ) | ( ((pu32Src[ u32WordIndex ])&0xFF00FF00)>>8 );
+  }
 }
 
 /*! *******************************************************************
@@ -155,96 +150,96 @@ static void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  * \param  pu8ArrayResult: array of 3234 bytes!
  * \return -
  *********************************************************************/
-static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )  //TODO: needs optimization
+static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    static U8 au8TempFrame[ 32 ];  // probably can be removed after optimization
-    U8  u8Index;
-    U8  u8InnerIndex;
-    U16 u16FrameNum;
-    U8  u8Temp;
+  static U8 au8TempFrame[ 32 ];  // NOTE: used as a temporary array, probably can be removed after optimization
+  U8  u8Index;
+  U16 u16FrameNum;
+  U8  u8Temp;
+  U8  au8C2Parity[ 4 ];
 
-    for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
+  // Iterate for all F1 frames
+  for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
+  {
+    // constructing temporary frame
+    // first 12-byte block
+    au8TempFrame[0]  = gau8CIRCDelayLines1[ 1 ][ 0 ];
+    au8TempFrame[1]  = gau8CIRCDelayLines1[ 1 ][ 1 ];
+    au8TempFrame[2]  = gau8CIRCDelayLines1[ 1 ][ 8 ];
+    au8TempFrame[3]  = gau8CIRCDelayLines1[ 1 ][ 9 ];
+    au8TempFrame[4]  = gau8CIRCDelayLines1[ 1 ][ 16 ];
+    au8TempFrame[5]  = gau8CIRCDelayLines1[ 1 ][ 17 ];
+    au8TempFrame[6]  = gau8CIRCDelayLines1[ 1 ][ 2 ];
+    au8TempFrame[7]  = gau8CIRCDelayLines1[ 1 ][ 3 ];
+    au8TempFrame[8]  = gau8CIRCDelayLines1[ 1 ][ 10 ];
+    au8TempFrame[9]  = gau8CIRCDelayLines1[ 1 ][ 11 ];
+    au8TempFrame[10] = gau8CIRCDelayLines1[ 1 ][ 18 ];
+    au8TempFrame[11] = gau8CIRCDelayLines1[ 1 ][ 19 ];
+    // second 12-byte block
+    au8TempFrame[12] = pu8ArrayToConvert[ (24*u16FrameNum) + 4 ];
+    au8TempFrame[13] = pu8ArrayToConvert[ (24*u16FrameNum) + 5 ];
+    au8TempFrame[14] = pu8ArrayToConvert[ (24*u16FrameNum) + 12 ];
+    au8TempFrame[15] = pu8ArrayToConvert[ (24*u16FrameNum) + 13 ];
+    au8TempFrame[16] = pu8ArrayToConvert[ (24*u16FrameNum) + 20 ];
+    au8TempFrame[17] = pu8ArrayToConvert[ (24*u16FrameNum) + 21 ];
+    au8TempFrame[18] = pu8ArrayToConvert[ (24*u16FrameNum) + 6 ];
+    au8TempFrame[19] = pu8ArrayToConvert[ (24*u16FrameNum) + 7 ];
+    au8TempFrame[20] = pu8ArrayToConvert[ (24*u16FrameNum) + 14 ];
+    au8TempFrame[21] = pu8ArrayToConvert[ (24*u16FrameNum) + 15 ];
+    au8TempFrame[22] = pu8ArrayToConvert[ (24*u16FrameNum) + 22 ];
+    au8TempFrame[23] = pu8ArrayToConvert[ (24*u16FrameNum) + 23 ];
+
+    // first set of delay lines
+    for( u8Index = 0; u8Index < 24; u8Index++ )  // NOTE: this can be optimized (not all elements of the array are used)
     {
-        // constructing temporary frame
-        au8TempFrame[0]  = gau8CIRCDelayLines1[ 1 ][ 0 ];
-        au8TempFrame[1]  = gau8CIRCDelayLines1[ 1 ][ 1 ];
-        au8TempFrame[2]  = gau8CIRCDelayLines1[ 1 ][ 4 ];
-        au8TempFrame[3]  = gau8CIRCDelayLines1[ 1 ][ 5 ];
-        au8TempFrame[4]  = gau8CIRCDelayLines1[ 1 ][ 8 ];
-        au8TempFrame[5]  = gau8CIRCDelayLines1[ 1 ][ 9 ];
-        au8TempFrame[6]  = gau8CIRCDelayLines1[ 1 ][ 2 ];
-        au8TempFrame[7]  = gau8CIRCDelayLines1[ 1 ][ 3 ];
-        au8TempFrame[8]  = gau8CIRCDelayLines1[ 1 ][ 6 ];
-        au8TempFrame[9]  = gau8CIRCDelayLines1[ 1 ][ 7 ];
-        au8TempFrame[10] = gau8CIRCDelayLines1[ 1 ][ 10 ];
-        au8TempFrame[11] = gau8CIRCDelayLines1[ 1 ][ 11 ];
-        au8TempFrame[12] = 0;  // C2 parity byte
-        au8TempFrame[13] = 0;  // C2 parity byte
-        au8TempFrame[14] = 0;  // C2 parity byte
-        au8TempFrame[15] = 0;  // C2 parity byte
-        au8TempFrame[16] = pu8ArrayToConvert[ (24*u16FrameNum) + 4 ];
-        au8TempFrame[17] = pu8ArrayToConvert[ (24*u16FrameNum) + 5 ];
-        au8TempFrame[18] = pu8ArrayToConvert[ (24*u16FrameNum) + 12 ];
-        au8TempFrame[19] = pu8ArrayToConvert[ (24*u16FrameNum) + 13 ];
-        au8TempFrame[20] = pu8ArrayToConvert[ (24*u16FrameNum) + 20 ];
-        au8TempFrame[21] = pu8ArrayToConvert[ (24*u16FrameNum) + 21 ];
-        au8TempFrame[22] = pu8ArrayToConvert[ (24*u16FrameNum) + 6 ];
-        au8TempFrame[23] = pu8ArrayToConvert[ (24*u16FrameNum) + 7 ];
-        au8TempFrame[24] = pu8ArrayToConvert[ (24*u16FrameNum) + 14 ];
-        au8TempFrame[25] = pu8ArrayToConvert[ (24*u16FrameNum) + 15 ];
-        au8TempFrame[26] = pu8ArrayToConvert[ (24*u16FrameNum) + 22 ];
-        au8TempFrame[27] = pu8ArrayToConvert[ (24*u16FrameNum) + 23 ];
-
-        // C2 encoding: RS(28,24)
-        ReedSolomon_AddRS2824( au8TempFrame );
-
-        // second set of delay lines
-        for( u8Index = 0; u8Index < 28; u8Index++ )
-        {
-            for( u8InnerIndex = 1; u8InnerIndex <= u8Index; u8InnerIndex++ )
-            {
-                gau8CIRCDelayLines2[ u8Index ][ u8InnerIndex-1 ] = gau8CIRCDelayLines2[ u8Index ][ u8InnerIndex ];
-            }
-            gau8CIRCDelayLines2[ u8Index ][ u8Index ] = au8TempFrame[ u8Index ];
-        }
-
-        // constructing temporary frame
-        for( u8Index = 0; u8Index < 28; u8Index++ )  //TODO: could be simplified if gau8CIRCDelayLines2[][] had their array indexes the other way
-        {
-            au8TempFrame[ u8Index ] = gau8CIRCDelayLines2[ u8Index ][ 0 ];
-        }
-
-        // C1 encoding: RS(32,28)
-        ReedSolomon_AddRS3228( au8TempFrame );
-
-        // third set of delay lines
-        for( u8Index = 0; u8Index < 16; u8Index++ )
-        {
-            u8Temp = au8TempFrame[ 2*u8Index ];
-            au8TempFrame[ 2*u8Index ] = gau8CIRCDelayLines3[ u8Index ];
-            gau8CIRCDelayLines3[ u8Index ] = u8Temp;
-        }
-
-        // invert parity bytes
-        au8TempFrame[ 12 ] = ~au8TempFrame[ 12 ];
-        au8TempFrame[ 13 ] = ~au8TempFrame[ 13 ];
-        au8TempFrame[ 14 ] = ~au8TempFrame[ 14 ];
-        au8TempFrame[ 15 ] = ~au8TempFrame[ 15 ];
-        au8TempFrame[ 28 ] = ~au8TempFrame[ 28 ];
-        au8TempFrame[ 29 ] = ~au8TempFrame[ 29 ];
-        au8TempFrame[ 30 ] = ~au8TempFrame[ 30 ];
-        au8TempFrame[ 31 ] = ~au8TempFrame[ 31 ];
-
-        // first set of delay lines
-        for( u8Index = 0; u8Index < 12; u8Index++ )
-        {
-            gau8CIRCDelayLines1[ 1 ][ u8Index ] = gau8CIRCDelayLines1[ 0 ][ u8Index ];
-            gau8CIRCDelayLines1[ 0 ][ u8Index ] = pu8ArrayToConvert[ (24*u16FrameNum) + ((u8Index/4) * 8 ) + (u8Index%4) ];  // magic: u8Index/4 will be rounded downwards
-        }
-
-        // frame is finished, write out
-        memcpy( &(pu8ArrayResult[(33*u16FrameNum)]), au8TempFrame, 32 );  //NOTE: omits the place needed by subcode
+      gau8CIRCDelayLines1[ 1 ][ u8Index ] = gau8CIRCDelayLines1[ 0 ][ u8Index ];
+      gau8CIRCDelayLines1[ 0 ][ u8Index ] = pu8ArrayToConvert[ (24*u16FrameNum) + u8Index ];
     }
+
+    // C2 encoding: RS(28,24)
+    ReedSolomon_AddRS2824( au8TempFrame );
+    // reorder: put the parity to the middle
+    memcpy( au8C2Parity, &au8TempFrame[24], 4 );
+    memmove( &au8TempFrame[16], &au8TempFrame[12], 12 );
+    memcpy( &au8TempFrame[12], au8C2Parity, 4 );
+
+    // second set of delay lines
+    memcpy( gau8CIRCDelayLines2[ 0 ], au8TempFrame, 28 );  // 0. element: no delay
+    for( u8Index = 1; u8Index < 28; u8Index++ )
+    {
+      memcpy( gau8CIRCDelayLines2[ u8Index ], gau8CIRCDelayLines2[ u8Index-1 ], 28 );
+    }
+    // constructing temporary frame
+    for( u8Index = 0; u8Index < 28; u8Index++ )
+    {
+      au8TempFrame[ u8Index ] = gau8CIRCDelayLines2[ u8Index ][ u8Index ];
+    }
+
+    // C1 encoding: RS(32,28)
+    ReedSolomon_AddRS3228( au8TempFrame );
+
+    // third set of delay lines
+    for( u8Index = 0; u8Index < 32; u8Index = u8Index+2 )
+    {
+      // every other bytes are delayed
+      u8Temp = au8TempFrame[ u8Index ];
+      au8TempFrame[ u8Index ] = gau8CIRCDelayLines3[ u8Index ];
+      gau8CIRCDelayLines3[ u8Index ] = u8Temp;
+    }
+
+    // invert the parity bytes
+    au8TempFrame[ 12 ] = ~au8TempFrame[ 12 ];
+    au8TempFrame[ 13 ] = ~au8TempFrame[ 13 ];
+    au8TempFrame[ 14 ] = ~au8TempFrame[ 14 ];
+    au8TempFrame[ 15 ] = ~au8TempFrame[ 15 ];
+    au8TempFrame[ 28 ] = ~au8TempFrame[ 28 ];
+    au8TempFrame[ 29 ] = ~au8TempFrame[ 29 ];
+    au8TempFrame[ 30 ] = ~au8TempFrame[ 30 ];
+    au8TempFrame[ 31 ] = ~au8TempFrame[ 31 ];
+
+    // frame is finished, write out
+    memcpy( &(pu8ArrayResult[(33*u16FrameNum)+1]), au8TempFrame, 32 );  //NOTE: omits the place needed by subcode (that is placed at the first byte!)
+  }
 }
 
 /*! *******************************************************************
@@ -254,12 +249,13 @@ static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )  //TODO: ne
  *********************************************************************/
 static void AddSubcode( U8* pu8CIRCSector )
 {
-    U16 u16FrameNum;
+  U16 u16FrameNum;
 
-    for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
-    {
-        pu8CIRCSector[ u16FrameNum*33 + 32 ] = 0;  //TODO: implement
-    }
+  for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
+  {
+    pu8CIRCSector[ u16FrameNum*33 ] = 0;  //TODO: implement
+    #warning "TODO: implement"
+  }
 }
 
 /*! *******************************************************************
@@ -270,7 +266,48 @@ static void AddSubcode( U8* pu8CIRCSector )
  *********************************************************************/
 static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    //FIXME: implement
+  U32 u32F3Frame;           // F3 frame number inside sector: 0...97
+  U32 u32ByteIndex;         // byte index inside F3 frame: 0...32
+  U32 u32BitIndex = 0;      // range: 0...57623
+  U32 u32EFM;               // temporary variable
+
+  // Each F3 frame (33 bytes) is converted to the following 588 bits:
+  // -- Sync header: 24 bits
+  // -- Merging bits: 3 bits
+  // -- Control byte (first byte of the F3 frame): 14 bits
+  // -- Merging bits: 3 bits
+  // -- Data bytes (from the second byte of the F3 frame to the end: 32*14 = 544 bits
+  for( u32F3Frame = 0; u32F3Frame < 98; u32F3Frame++ )
+  {
+    // Sync header + merging bits -- the first word is SYNC0, so the merging bits are constant here
+    u32EFM = 0x80100200;
+    #warning "TODO: add merging bits"
+    u32BitIndex += 27;
+    // Control and data bytes
+    for( u32ByteIndex = 0; u32ByteIndex < 33; u32ByteIndex++ )
+    {
+      // look up the code
+      u32EFM = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33 + u32ByteIndex ] ];
+      // if it is a control word
+      if( 0 == u32ByteIndex )
+      {
+        if( 0 == u32F3Frame )  // First F3 frame
+        {
+          u32EFM = 0x20040000;  // SYNC0 code
+        }
+        else if( 1 == u32F3Frame )  // Second F3 frame
+        {
+          u32EFM = 0x00480000;  // SYNC1 code
+        }
+        else
+        {
+          // the lookup table is used
+        }
+      }
+      //TODO: merging bits and output
+      #warning "TODO: implement"
+    }
+  }
 }
 
 /*! *******************************************************************
@@ -281,22 +318,22 @@ static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  *********************************************************************/
 static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    U16 u16Index;
-    U8  u8BitIndex;
-    U8  u8State = 1;
+  static U8  u8State = 1;
+  U16 u16Index;
+  U8  u8BitIndex;
 
-    for( u16Index = 0; u16Index < CD_CHANNEL_FRAME_SIZE; u16Index++ )
+  for( u16Index = 0; u16Index < CD_CHANNEL_FRAME_SIZE; u16Index++ )
+  {
+    pu8ArrayResult[ u16Index ] = 0;
+    for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //TODO: probably there is a faster way to do this...
     {
-        pu8ArrayResult[ u16Index ] = 0;
-        for( u8BitIndex = 0; u8BitIndex < 8; u8BitIndex++ )  //TODO: probably there is a faster way to do this...
-        {
-            if( 0 != (pu8ArrayToConvert[ u16Index ] & (1<<u8BitIndex)) )
-            {
-                u8State ^= 1;
-            }
-            pu8ArrayResult[ u16Index ] |= u8State<<u8BitIndex;
-        }
+      if( 0 != (pu8ArrayToConvert[ u16Index ] & (1<<u8BitIndex)) )
+      {
+        u8State ^= 1;
+      }
+      pu8ArrayResult[ u16Index ] |= u8State<<u8BitIndex;
     }
+  }
 }
 
 
@@ -311,21 +348,19 @@ static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  *********************************************************************/
 void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
-    static U8 au8CIRCEncoded[ 3234 ];  // temporary array; won't needed after optimization
-    static U8 au8F1Frames[ CD_RAW_SECTOR_SIZE ];
+  static U8 au8EFMEncoded[ CD_CHANNEL_FRAME_SIZE ];   // temporary array; won't needed after optimization
+  static U8 au8CIRCEncoded[ CD_FRAME_SIZE ];  // temporary array; won't needed after optimization
+  static U8 au8F1Frames[ CD_RAW_SECTOR_SIZE ];
 
-    //NOTE: these two can be merged into one optimized function
-    ScrambleSector( pu8ArrayToConvert, pu8ArrayToConvert );  // scramble sector in place
-    MakeF1Sector( pu8ArrayToConvert, au8F1Frames );  // make F1 frames from sector
+  //NOTE: these two can be merged into one optimized function
+  ScrambleSector( pu8ArrayToConvert, pu8ArrayToConvert );  // scramble sector in place
+  MakeF1Sector( pu8ArrayToConvert, au8F1Frames );  // make F1 frames from sector
 
-    CIRCEncoder( au8F1Frames, au8CIRCEncoded );
+  CIRCEncoder( au8F1Frames, au8CIRCEncoded );
+  AddSubcode( au8CIRCEncoded );
 
-    AddSubcode( au8CIRCEncoded );
-
-    //TODO: EFM encoding + sync header + merging bits
-
-    //EncodeNRZI( pu8ArrayToConvert, pu8ArrayResult );  // NRZI encoding of channel frames
-    memcpy( pu8ArrayResult, au8CIRCEncoded, 3234 );  //FIXME: debug, delete
+  EFMEncoder( au8CIRCEncoded, au8EFMEncoded );
+  EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames
 }
 
 
@@ -336,8 +371,9 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
  *********************************************************************/
 void BinConvert_Init( void )
 {
-    memset( gau8CIRCDelayLines1, 0, sizeof(gau8CIRCDelayLines1) );
-    memset( gau8CIRCDelayLines2, 0, sizeof(gau8CIRCDelayLines2) );
+  memset( gau8CIRCDelayLines1, 0, sizeof(gau8CIRCDelayLines1) );
+  memset( gau8CIRCDelayLines2, 0, sizeof(gau8CIRCDelayLines2) );
+#warning "TODO: initialize all static values too"
 
 }
 
