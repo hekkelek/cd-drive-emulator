@@ -12,6 +12,8 @@ U8 u8PitsnLands[ 7203 ];
 int main()
 {
     U16 u16ReadBytes;
+    U32 u32Sector = 0;
+    U32 u32Size;
 
     printf("CD binary converter test\n");
 
@@ -26,6 +28,10 @@ int main()
         return -1;
     }
 
+    fseek( frp, 0l, SEEK_END );
+    u32Size = ftell( frp );
+    rewind( frp );
+
     for( u16ReadBytes = 2352; u16ReadBytes == 2352;  )
     {
         u16ReadBytes = fread( u8Sector, sizeof( U8 ), 2352, frp );
@@ -33,6 +39,7 @@ int main()
         {
             break;
         }
+        printf( "Converting sector %u/%u\n", ++u32Sector, u32Size/2352u );
         BinConvert_CDSector2352( u8Sector, u8PitsnLands );
         fwrite( u8PitsnLands, sizeof( U8 ), sizeof( u8PitsnLands ), fwp );
     }

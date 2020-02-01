@@ -293,12 +293,19 @@ static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
     u32EFM = 0x80100200u | (u32EFM>>10u);
     WriteBitsToArray( u32EFM, 27u, u32BitIndex, pu8ArrayResult );
     u32BitIndex += 27u;
-    // Control and data bytes without the last one
-    for( u32ByteIndex = 0u; u32ByteIndex < 32u; u32ByteIndex++ )
+    // Control and data bytes
+    for( u32ByteIndex = 0u; u32ByteIndex < 33u; u32ByteIndex++ )
     {
       // look up the code
       u32EFM = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u + u32ByteIndex ] ];
-      u32NextWord = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u + u32ByteIndex + 1u ] ];
+      if( 32u == u32ByteIndex )
+      {
+        u32NextWord = 0x80100200u;  // next word will be a sync header
+      }
+      else
+      {
+        u32NextWord = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u + u32ByteIndex + 1u ] ];
+      }
       // if it is a control word
       if( 0u == u32ByteIndex )
       {
@@ -321,8 +328,6 @@ static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
       WriteBitsToArray( u32EFM, 17u, u32BitIndex, pu8ArrayResult );
       u32BitIndex += 17u;
     }
-    // Add last byte of the F3 frame and merging bits
-    #warning "TODO: implement"
   }
 }
 
