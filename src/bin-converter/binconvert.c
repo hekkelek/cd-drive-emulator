@@ -20,6 +20,9 @@
 #include "types.h"
 #include "reedsolomon.h"
 
+// Own include
+#include "binconvert.h"
+
 
 //--------------------------------------------------------------------------------------------------------/
 // Definitions
@@ -90,7 +93,7 @@ U8 gau8CIRCDelayLines3[ 32 ];        // delay line for CIRC encoder
 static void ScrambleSector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
-static void AddSubcode( U8* pu8CIRCSector );
+static void AddSubcode( U8* pu8CIRCSector, S_CD_SUBCODE* psSubcode );
 static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static I32 CalculateDSV( U32 u32Word, U8 u8BitCount, BOOL* pbDirection );
@@ -253,16 +256,29 @@ static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 /*! *******************************************************************
  * \brief  Add subcode to CIRC encoded frame
  * \param  pu8CIRCSector: array of 3234 bytes!
+ * \param  psSubcode:
  * \return -
  *********************************************************************/
-static void AddSubcode( U8* pu8CIRCSector )
+static void AddSubcode( U8* pu8CIRCSector, S_CD_SUBCODE* psSubcode )
 {
   U16 u16FrameNum;
+  U8  u8Subcode;
+  U8  u8ByteIdx;
+  U8  u8BitIdx;
 
-  for( u16FrameNum = 0; u16FrameNum < 98; u16FrameNum++ )
+  for( u16FrameNum = 2; u16FrameNum < 98; u16FrameNum++ )  // first 2 F3 frames contain the Sync0 and Sync1 codes
   {
-    pu8CIRCSector[ u16FrameNum*33 ] = 0;  //TODO: implement
-    #warning "TODO: implement"
+    u8ByteIdx = (u16FrameNum-2)/8;
+    u8BitIdx  = (u16FrameNum-2)%8;
+    u8Subcode = ( ( ( psSubcode->au96SubcodeP[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<7u )
+              | ( ( ( psSubcode->au96SubcodeQ[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<6u )
+              | ( ( ( psSubcode->au96SubcodeR[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<5u )
+              | ( ( ( psSubcode->au96SubcodeS[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<4u )
+              | ( ( ( psSubcode->au96SubcodeT[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<3u )
+              | ( ( ( psSubcode->au96SubcodeU[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<2u )
+              | ( ( ( psSubcode->au96SubcodeV[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<1u )
+              | ( ( ( psSubcode->au96SubcodeW[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<0u );
+    pu8CIRCSector[ u16FrameNum*33 ] = u8Subcode;
   }
 }
 
@@ -619,9 +635,10 @@ static void WriteBitsToArray( U32 u32WordToWrite, U32 u32NumberofBits, U32 u32Bi
  * \brief  Convert CD sector binary to pits and lands
  * \param  pu8ArrayToConvert: array of 2352 bytes!
  * \param  pu8ArrayResult: array of 7203 bytes!
+ * \param  psSubcode: the subcode to be added to the sector
  * \return -
  *********************************************************************/
-void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
+void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SUBCODE* psSubcode )
 {
   static U8 au8EFMEncoded[ CD_CHANNEL_FRAME_SIZE ];   // temporary array; won't needed after optimization
   static U8 au8CIRCEncoded[ CD_FRAME_SIZE ];  // temporary array; won't needed after optimization
@@ -632,7 +649,7 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
   MakeF1Sector( pu8ArrayToConvert, au8F1Frames );  // make F1 frames from sector
 
   CIRCEncoder( au8F1Frames, au8CIRCEncoded );
-  AddSubcode( au8CIRCEncoded );
+  AddSubcode( au8CIRCEncoded, psSubcode );
 
   EFMEncoder( au8CIRCEncoded, au8EFMEncoded );
   EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames

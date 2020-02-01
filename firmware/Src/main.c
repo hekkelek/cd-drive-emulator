@@ -1,7 +1,8 @@
+
 /**
   ******************************************************************************
-  * File Name          : main.c
-  * Description        : Main program body
+  * @file           : main.c
+  * @brief          : Main program body
   ******************************************************************************
   * This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
@@ -9,7 +10,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * Copyright (c) 2018 STMicroelectronics International N.V. 
+  * Copyright (c) 2020 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -45,7 +46,6 @@
   *
   ******************************************************************************
   */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -57,8 +57,8 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-I2S_HandleTypeDef hi2s3;
-DMA_HandleTypeDef hdma_spi3_tx;
+I2S_HandleTypeDef hi2s2;
+DMA_HandleTypeDef hdma_spi2_tx;
 
 SD_HandleTypeDef hsd;
 
@@ -71,8 +71,8 @@ SD_HandleTypeDef hsd;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_I2S3_Init(void);
 static void MX_SDIO_SD_Init(void);
+static void MX_I2S2_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -83,15 +83,63 @@ static void MX_SDIO_SD_Init(void);
 FATFS SDCard;
 FIL CDFile;
 
-U8 au8Sector[ 2352 ];  // temporary storage
-U8 au8PitsnLands[ 23*2352 ];  // CD drive data: 23 sectors -- 200 rpm = 3.3333 rps, and 1x means 75 sectors/sec ==> 75/(10/3) = 22.5 sectors/revolution
-//TODO: implement 2x mode too
+U8  au8PitsnLands[ 10*7203 ];  // CD drive data
+U32 u32CDPickup;
+
+
+// TX completed callback
+void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
+{
+  U16 u16ReadBytes;
+  f_read( &CDFile, au8PitsnLands, sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
+  if( 0 == u16ReadBytes )
+  {
+    f_rewind( &CDFile );
+    f_read( &CDFile, au8PitsnLands, sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
+    u32CDPickup = 0;
+  }
+  u32CDPickup += u16ReadBytes;
+  if( u32CDPickup > 3*75*7203 )
+  {
+    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
+  }
+  else
+  {
+    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_RESET );    
+  }
+}
+
+// TX half-completed callback
+void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
+{
+  U16 u16ReadBytes;
+  f_read( &CDFile, &au8PitsnLands[sizeof( au8PitsnLands )/2], sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
+  if( 0 == u16ReadBytes )
+  {
+    f_rewind( &CDFile );
+    f_read( &CDFile, au8PitsnLands, sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
+    u32CDPickup = 0;
+  }
+  u32CDPickup += u16ReadBytes;
+  if( u32CDPickup > 3*75*7203 )
+  {
+    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
+  }
+  else
+  {
+    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_RESET );    
+  }
+}
 
 /* USER CODE END 0 */
 
+/**
+  * @brief  The application entry point.
+  *
+  * @retval None
+  */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -115,16 +163,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_I2S3_Init();
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
-
+  MX_I2S2_Init();
   /* USER CODE BEGIN 2 */
   U16 u16ReadBytes;
-  U16 u16Sector;
-  U32 u32CDSector = 0;
   FRESULT res;
-  BOOL bDirection = TRUE;  // TRUE == from outer tracks to inner tracks
   
 //  disk_initialize( 0 );  // Initialize SD card
   u16ReadBytes = BSP_SD_Init();
@@ -136,26 +180,18 @@ int main(void)
     return -1;
   }
 
-  res = f_open( &CDFile, (void *)"padtest.bin", FA_OPEN_ALWAYS | FA_READ );
-
+  res = f_open( &CDFile, (void *)"output.bin", FA_OPEN_ALWAYS | FA_READ );
   if( res != FR_OK )
   {
       return -1;
   }
 
-  for( u16Sector = 0; u16Sector < 23; u16Sector++ )
-  {
-      res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
-      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sector*2352]) );
-      u32CDSector += u16ReadBytes;
-  }
+  res = f_read( &CDFile, au8PitsnLands, sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
+  res = f_read( &CDFile, &au8PitsnLands[sizeof( au8PitsnLands )/2], sizeof( au8PitsnLands )/2, (void *)&u16ReadBytes );
 
-  HAL_I2S_Transmit_DMA( &hi2s3, (U16*)au8PitsnLands, 23*2352/2 );  // start CD image stream
+  HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_RESET );
   
-  u16Sector = 0;
-  u32CDSector = 0;
-  res = f_lseek( &CDFile, 0 );
-  bDirection = FALSE;
+  HAL_I2S_Transmit_DMA( &hi2s2, (U16*)au8PitsnLands, sizeof( au8PitsnLands )/2 );  // start CD image stream
   
   /* USER CODE END 2 */
 
@@ -166,38 +202,22 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-    U32 u32Delay = HAL_GetTick() + 10;  // 10 ms
-    while( HAL_GetTick() < u32Delay );  // wait for timeout
+//    U32 u32Delay = HAL_GetTick() + 10;  // 10 ms
+//    while( HAL_GetTick() < u32Delay );  // wait for timeout
     
-    res = f_lseek( &CDFile, u32CDSector*2352 );
-    res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
-
-    if( u16ReadBytes == 2352 )
-      BinConvert_CDSector2352( au8Sector, &(au8PitsnLands[u16Sector*2352]) );
+    //res = f_lseek( &CDFile, u32CDSector*2352 );
+    //res = f_read( &CDFile, au8Sector, 2352, (void *)&u16ReadBytes );
     
-    if( ( u16ReadBytes != 2352 ) || ( u32CDSector == 0 ) )  // end/begining of file
-    {
-      bDirection = ( bDirection == TRUE ) ? FALSE : TRUE;
-    }
-
-    if( bDirection == TRUE )
-    {
-      u32CDSector++;
-      if( ++u16Sector >= 23 ) u16Sector = 0;  // increment sector index with rollover
-    }
-    else
-    {
-      u32CDSector--;
-      if( --u16Sector >= 23 ) u16Sector = 22;  // decrement sector index with rollover
-    }
     
   }
   /* USER CODE END 3 */
 
 }
 
-/** System Clock Configuration
-*/
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
 
@@ -260,20 +280,20 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
-/* I2S3 init function */
-static void MX_I2S3_Init(void)
+/* I2S2 init function */
+static void MX_I2S2_Init(void)
 {
 
-  hi2s3.Instance = SPI3;
-  hi2s3.Init.Mode = I2S_MODE_MASTER_TX;
-  hi2s3.Init.Standard = I2S_STANDARD_MSB;
-  hi2s3.Init.DataFormat = I2S_DATAFORMAT_16B;
-  hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
-  hi2s3.Init.AudioFreq = I2S_AUDIOFREQ_44K;
-  hi2s3.Init.CPOL = I2S_CPOL_LOW;
-  hi2s3.Init.ClockSource = I2S_CLOCK_PLL;
-  hi2s3.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_DISABLE;
-  if (HAL_I2S_Init(&hi2s3) != HAL_OK)
+  hi2s2.Instance = SPI2;
+  hi2s2.Init.Mode = I2S_MODE_MASTER_TX;
+  hi2s2.Init.Standard = I2S_STANDARD_MSB;
+  hi2s2.Init.DataFormat = I2S_DATAFORMAT_16B;
+  hi2s2.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
+  hi2s2.Init.AudioFreq = 93713;
+  hi2s2.Init.CPOL = I2S_CPOL_LOW;
+  hi2s2.Init.ClockSource = I2S_CLOCK_PLL;
+  hi2s2.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_ENABLE;
+  if (HAL_I2S_Init(&hi2s2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -303,9 +323,9 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
 
 }
 
@@ -315,6 +335,7 @@ static void MX_DMA_Init(void)
         * Output
         * EVENT_OUT
         * EXTI
+     PA15   ------> I2S3_WS
      PB8   ------> I2C1_SCL
      PB9   ------> I2C1_SDA
 */
@@ -326,9 +347,27 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : SLED_LIMIT_Pin */
+  GPIO_InitStruct.Pin = SLED_LIMIT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(SLED_LIMIT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB8 PB9 */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
@@ -346,45 +385,43 @@ static void MX_GPIO_Init(void)
 
 /**
   * @brief  This function is executed in case of error occurrence.
-  * @param  None
+  * @param  file: The file name as string.
+  * @param  line: The line in file as a number.
   * @retval None
   */
-void _Error_Handler(char * file, int line)
+void _Error_Handler(char *file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   while(1) 
   {
   }
-  /* USER CODE END Error_Handler_Debug */ 
+  /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
-
+#ifdef  USE_FULL_ASSERT
 /**
-   * @brief Reports the name of the source file and the source line number
-   * where the assert_param error has occurred.
-   * @param file: pointer to the source file name
-   * @param line: assert_param error line source number
-   * @retval None
-   */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t* file, uint32_t line)
-{
+{ 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
-
 }
-
-#endif
-
-/**
-  * @}
-  */ 
+#endif /* USE_FULL_ASSERT */
 
 /**
   * @}
-*/ 
+  */
+
+/**
+  * @}
+  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -1,18 +1,18 @@
 /*! *******************************************************************************************************
-* Copyright (c) 2017-2018 Kristóf Szabolcs Horváth
+* Copyright (c) 2018-2019 K. Sz. Horvath
 *
 * All rights reserved
 *
-* \file binconvert.h
+* \file crc.h
 *
-* \brief Binary to raw CD converter functions
+* \brief CRC algorithms
 *
-* \author Kristóf Sz. Horváth
+* \author K. Sz. Horvath
 *
 **********************************************************************************************************/
 
-#ifndef BINCONVERT_H_INCLUDED
-#define BINCONVERT_H_INCLUDED
+#ifndef TEMPLATE_H
+#define TEMPLATE_H
 
 //--------------------------------------------------------------------------------------------------------/
 // Include files
@@ -27,40 +27,19 @@
 //--------------------------------------------------------------------------------------------------------/
 // Types
 //--------------------------------------------------------------------------------------------------------/
-//! \brief Structure for containing the subcode
-typedef struct
-{
-  U8 au96SubcodeP[ 12u ];  //!< P subcode
-  U8 au96SubcodeQ[ 12u ];  //!< Q subcode
-  U8 au96SubcodeR[ 12u ];  //!< R subcode
-  U8 au96SubcodeS[ 12u ];  //!< S subcode
-  U8 au96SubcodeT[ 12u ];  //!< T subcode
-  U8 au96SubcodeU[ 12u ];  //!< U subcode
-  U8 au96SubcodeV[ 12u ];  //!< V subcode
-  U8 au96SubcodeW[ 12u ];  //!< W subcode
-} S_CD_SUBCODE;
-
-//! \brief Structure for Q subcode
-typedef struct
-{
-  U8  u4Control : 4;
-  U8  u4Address : 4;
-  U8  au8DataQ[ 9 ];
-  U16 u16Crc;
-} S_CD_SUBCODE_Q;
 
 
 //--------------------------------------------------------------------------------------------------------/
-// Global functions
+// Global variables
 //--------------------------------------------------------------------------------------------------------/
 
 
 //--------------------------------------------------------------------------------------------------------/
-// Public functions
+// Interface functions
 //--------------------------------------------------------------------------------------------------------/
-void BinConvert_Init( void );
-void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SUBCODE* psSubcode );
 
 
 
-#endif // BINCONVERT_H_INCLUDED
+#endif  // TEMPLATE_H
+
+//-----------------------------------------------< EOF >--------------------------------------------------/
