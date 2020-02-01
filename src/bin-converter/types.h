@@ -11,8 +11,8 @@
 *
 **********************************************************************************************************/
 
-#ifndef _TYPES_H
-#define _TYPES_H
+#ifndef TYPES_H
+#define TYPES_H
 
 //--------------------------------------------------------------------------------------------------------/
 // Include files
@@ -36,16 +36,17 @@ typedef uint16_t U16;
 typedef uint32_t U32;
 typedef uint64_t U64;
 
+typedef int8_t  I8;
+typedef int16_t I16;
+typedef int32_t I32;
+typedef int64_t I64;
+
 typedef enum
 {
-	TRUE  = 0xA3,
-	FALSE = 0x00
+	TRUE  = 0xA3u,
+	FALSE = 0x00u
 } BOOL;
-/*
-typedef bool BOOL;
-#define TRUE true
-#define FALSE false
-*/
+
 
 //--------------------------------------------------------------------------------------------------------/
 // Globális változók
@@ -81,4 +82,4 @@ typedef bool BOOL;
  *********************************************************************/
 
 
-#endif  // _TYPES_H
+#endif  // TYPES_H

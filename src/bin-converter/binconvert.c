@@ -14,6 +14,8 @@
 //--------------------------------------------------------------------------------------------------------/
 // Include files
 //--------------------------------------------------------------------------------------------------------/
+#include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include "types.h"
 #include "reedsolomon.h"
@@ -70,6 +72,9 @@ const U32 cau32EFMCodeTable[ 256 ] = { 0x48800000, 0x84000000, 0x90800000, 0x888
                                        0x04880000, 0x82480000, 0x92480000, 0x08880000, 0x42480000, 0x02480000, 0x12480000, 0x22480000,
                                        0x48480000, 0x80480000, 0x90480000, 0x88480000, 0x40480000, 0x08480000, 0x10480000, 0x20480000 };
 
+//! \brief Potential merging bits (from MSB)
+const U8 gca8MergingBits[ 4u ] = { 0x80, 0x40, 0x20, 0x00 };
+
 
 //--------------------------------------------------------------------------------------------------------/
 // Global variables
@@ -88,6 +93,9 @@ static void CIRCEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static void AddSubcode( U8* pu8CIRCSector );
 static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
 static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult );
+static I32 CalculateDSV( U32 u32Word, U8 u8BitCount, BOOL* pbDirection );
+static U32 AddMergingBits( U32 u32Word1, U32 u32Word2 );
+static void WriteBitsToArray( U32 u32WordToWrite, U32 u32NumberofBits, U32 u32BitIndex, U8* pu8Array );
 
 
 //--------------------------------------------------------------------------------------------------------/
@@ -268,8 +276,9 @@ static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
 {
   U32 u32F3Frame;           // F3 frame number inside sector: 0...97
   U32 u32ByteIndex;         // byte index inside F3 frame: 0...32
-  U32 u32BitIndex = 0;      // range: 0...57623
+  U32 u32BitIndex = 0u;     // range: 0...57623
   U32 u32EFM;               // temporary variable
+  U32 u32NextWord;          // temporary variable
 
   // Each F3 frame (33 bytes) is converted to the following 588 bits:
   // -- Sync header: 24 bits
@@ -277,36 +286,43 @@ static void EFMEncoder( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
   // -- Control byte (first byte of the F3 frame): 14 bits
   // -- Merging bits: 3 bits
   // -- Data bytes (from the second byte of the F3 frame to the end: 32*14 = 544 bits
-  for( u32F3Frame = 0; u32F3Frame < 98; u32F3Frame++ )
+  for( u32F3Frame = 0u; u32F3Frame < 98u; u32F3Frame++ )
   {
-    // Sync header + merging bits -- the first word is SYNC0, so the merging bits are constant here
-    u32EFM = 0x80100200;
-    #warning "TODO: add merging bits"
-    u32BitIndex += 27;
-    // Control and data bytes
-    for( u32ByteIndex = 0; u32ByteIndex < 33; u32ByteIndex++ )
+    // Sync header (0x80100200) + merging bits
+    u32EFM = AddMergingBits( 0x40080000u, cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u ] ] );
+    u32EFM = 0x80100200u | (u32EFM>>10u);
+    WriteBitsToArray( u32EFM, 27u, u32BitIndex, pu8ArrayResult );
+    u32BitIndex += 27u;
+    // Control and data bytes without the last one
+    for( u32ByteIndex = 0u; u32ByteIndex < 32u; u32ByteIndex++ )
     {
       // look up the code
-      u32EFM = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33 + u32ByteIndex ] ];
+      u32EFM = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u + u32ByteIndex ] ];
+      u32NextWord = cau32EFMCodeTable[ pu8ArrayToConvert[ u32F3Frame*33u + u32ByteIndex + 1u ] ];
       // if it is a control word
-      if( 0 == u32ByteIndex )
+      if( 0u == u32ByteIndex )
       {
-        if( 0 == u32F3Frame )  // First F3 frame
+        if( 0u == u32F3Frame )  // First F3 frame
         {
-          u32EFM = 0x20040000;  // SYNC0 code
+          u32EFM = 0x20040000u;  // SYNC0 code
         }
-        else if( 1 == u32F3Frame )  // Second F3 frame
+        else if( 1u == u32F3Frame )  // Second F3 frame
         {
-          u32EFM = 0x00480000;  // SYNC1 code
+          u32EFM = 0x00480000u;  // SYNC1 code
         }
         else
         {
           // the lookup table is used
         }
       }
-      //TODO: merging bits and output
-      #warning "TODO: implement"
+      // Adding merging bits --> 17 bit result
+      u32EFM = AddMergingBits( u32EFM, u32NextWord );
+      // Write output
+      WriteBitsToArray( u32EFM, 17u, u32BitIndex, pu8ArrayResult );
+      u32BitIndex += 17u;
     }
+    // Add last byte of the F3 frame and merging bits
+    #warning "TODO: implement"
   }
 }
 
@@ -336,6 +352,260 @@ static void EncodeNRZI( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
   }
 }
 
+/*! *******************************************************************
+ * \brief  Calculate the digital sum value (DSV) of the given word
+ * \param  u32Word: the word
+ * \param  u8BitCount: number of bits used (from MSB)
+ * \param  pbDirection: TRUE, if the direction was increment
+ * \return Digital sum value of the given word
+ *********************************************************************/
+static I32 CalculateDSV( U32 u32Word, U8 u8BitCount, BOOL* pbDirection )
+{
+  I32 i32DSV = 0;
+  U8  u8BitIndex;
+
+  for( u8BitIndex = 0; u8BitIndex < u8BitCount; u8BitIndex++ )
+  {
+    if( 0u != ( u32Word & ( 1u<<(31u-u8BitIndex) ) ) )  // if 1
+    {
+      *pbDirection = (TRUE == *pbDirection) ? FALSE : TRUE;
+    }
+    i32DSV += (TRUE == *pbDirection) ? 1 : -1;
+  }
+
+  return i32DSV;
+}
+
+/*! *******************************************************************
+ * \brief  Adds merging bits between two 14-bit wide words
+ * \param  u32Word1: first word
+ * \param  u32Word2: second word
+ * \return The first word with added merging bits (17 bits)
+ *********************************************************************/
+static U32 AddMergingBits( U32 u32Word1, U32 u32Word2 )
+{
+  static I32  i32DSV = 0;  // DSV of the whole disk
+  static BOOL bDirection = TRUE;
+  BOOL        bFinalDirection[ (sizeof( gca8MergingBits )/sizeof( U8 )) ];
+  U32  u32Return;
+  U32  u32Temp;
+  I32  i32Temp;
+  U8   u8Index;
+  U8   u8LeadingZeros;
+  U8   u8Zeros;
+  U8   au8PotentialMergingBits[ (sizeof( gca8MergingBits )/sizeof( U8 )) ];
+  BOOL abValidMergingBits[ (sizeof( gca8MergingBits )/sizeof( U8 )) ];
+  I32  ai32DSVWithMergingBits[ (sizeof( gca8MergingBits )/sizeof( U8 )) ];
+
+  // NOTE: this function could be optimized
+
+  (void)memcpy( au8PotentialMergingBits, gca8MergingBits, sizeof( gca8MergingBits ) );
+
+  // init bool array
+  for( u8Index = 0u; u8Index < (sizeof( gca8MergingBits )/sizeof( U8 )); u8Index++ )
+  {
+    abValidMergingBits[ u8Index ] = TRUE;
+  }
+
+  // calculate the leading zeros for u32Word1
+  u8LeadingZeros = 0u;
+  for( u8Index = 0u; u8Index < 14u; u8Index++ )
+  {
+    if( 0u == ( u32Word1 & ( 1u<<(31u-u8Index) ) ) )  // if the given bit is zero
+    {
+      u8LeadingZeros++;
+    }
+    else  // the given bit is 1
+    {
+      u8LeadingZeros = 0u;
+    }
+  }
+
+  // test the potential merging bits
+  for( u8Index = 0u; u8Index < (sizeof( gca8MergingBits )/sizeof( U8 )); u8Index++ )
+  {
+    u8Zeros = u8LeadingZeros;
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x80u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    //-----------
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x40u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    //-----------
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x20u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+  }
+
+  //-------------------------------------------------------------
+  // calculate the leading zeros from the back for u32Word2
+  u8LeadingZeros = 0u;
+  for( u8Index = 0u; u8Index < 14u; u8Index++ )
+  {
+    if( 0u == ( u32Word2 & ( 1u<<(18u+u8Index) ) ) )  // if the given bit is zero
+    {
+      u8LeadingZeros++;
+    }
+    else  // the given bit is 1
+    {
+      u8LeadingZeros = 0u;
+    }
+  }
+
+  // test the potential merging bits
+  for( u8Index = 0u; u8Index < (sizeof( gca8MergingBits )/sizeof( U8 )); u8Index++ )
+  {
+    u8Zeros = u8LeadingZeros;
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x20u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    //-----------
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x40u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    //-----------
+    if( 0u != ( au8PotentialMergingBits[ u8Index ] & 0x80u ) )  // 1
+    {
+      if( u8Zeros < 2 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+    else  // 0
+    {
+      u8Zeros++;
+      if( u8Zeros > 10 )
+      {
+        abValidMergingBits[ u8Index ] = FALSE;
+      }
+    }
+  }
+
+  //-------------------------------------------------
+  // Calculate DSV for each combination
+  for( u8Index = 0u; u8Index < (sizeof( gca8MergingBits )/sizeof( U8 )); u8Index++ )
+  {
+    u32Temp = u32Word1 | ((U32)au8PotentialMergingBits[ u8Index ]<<10) | (u32Word2>>17);
+    if( 0x80100200u == u32Temp )  // if adding the merging bits erroneously results in a sync header
+    {
+      // invalid combination
+      abValidMergingBits[ u8Index ] = FALSE;
+    }
+    else
+    {
+      bFinalDirection[ u8Index ] = bDirection;
+      ai32DSVWithMergingBits[ u8Index ] = CalculateDSV( u32Temp, 31u, &bFinalDirection[ u8Index ] );
+    }
+  }
+
+  // Select the one valid combination which results the lowest absolute DSV
+  i32Temp = -2147483647;
+  for( u8Index = 0u; u8Index < (sizeof( gca8MergingBits )/sizeof( U8 )); u8Index++ )
+  {
+    if( TRUE == abValidMergingBits[ u8Index ] )
+    {
+      // If two combinations give the same, lowest DSV, a combination with a transition shall be chosen.
+      if( ( abs(i32Temp) == abs(i32DSV + ai32DSVWithMergingBits[ u8Index ]) ) && ( 0u != au8PotentialMergingBits[ u8Index ] ) )
+      {
+        bDirection = bFinalDirection[ u8Index ];
+        u32Return = u32Word1 | ((U32)au8PotentialMergingBits[ u8Index ]<<10);
+      }
+      else if( abs(i32DSV + ai32DSVWithMergingBits[ u8Index ]) < abs(i32Temp) )
+      {
+        bDirection = bFinalDirection[ u8Index ];
+        i32Temp = ai32DSVWithMergingBits[ u8Index ] + i32DSV;
+        u32Return = u32Word1 | ((U32)au8PotentialMergingBits[ u8Index ]<<10);
+      }
+    }
+  }
+  i32DSV = i32Temp;
+  return u32Return;
+}
+
+/*! *******************************************************************
+ * \brief  Writes the given bits to an array
+ * \param  u32WordToWrite: bits to write
+ * \param  u32NumberofBits: number of bits from MSB
+ * \param  u32BitIndex: index of the first bit to write in the array
+ * \param  *pu8Array: array to write
+ * \return -
+ *********************************************************************/
+static void WriteBitsToArray( U32 u32WordToWrite, U32 u32NumberofBits, U32 u32BitIndex, U8* pu8Array )
+{
+  U32 u32ArrayIndex = u32BitIndex/8;
+  U8  u8ArrayBitOffset = u32BitIndex%8;
+  U8  u8ExistingElement = pu8Array[ u32ArrayIndex ];
+  U8  u8Index;
+
+  (void)memset( &pu8Array[ u32ArrayIndex ], 0, ceil( (u32NumberofBits + u8ArrayBitOffset) / 8.0f ) );
+  pu8Array[ u32ArrayIndex ] = u8ExistingElement & ~(0xFFu>>u8ArrayBitOffset);
+
+  for( u8Index = 0; u8Index < ceil( (u32NumberofBits + u8ArrayBitOffset) / 8.0f ); u8Index++ )
+  {
+    pu8Array[ u32ArrayIndex + u8Index ] |= u32WordToWrite >> ( 24u + u8ArrayBitOffset - 8u*u8Index );
+  }
+}
 
 //--------------------------------------------------------------------------------------------------------/
 // Public functions
