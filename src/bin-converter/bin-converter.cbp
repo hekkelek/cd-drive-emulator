@@ -16,6 +16,17 @@
 					<Add option="-g" />
 				</Compiler>
 			</Target>
+			<Target title="Release">
+				<Option output="bin/Debug/bin-converter" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-march=corei7-avx" />
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-O3" />
+				</Compiler>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -24,6 +35,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="binconvert.h" />
+		<Unit filename="crc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="crc.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -7,7 +7,7 @@
 #include "crc.h"
 
 
-#define LEAD_IN_SECTORS   100
+#define LEAD_IN_SECTORS   500
 #define LEAD_OUT_SECTORS  500
 
 
@@ -28,6 +28,36 @@ int main()
     U32 u32Size;
     U32 u32SectorCounter, u32AbsSectorCounter = 0;
     S_CD_SUBCODE sSubcode;
+
+
+
+
+    // CRC test
+/*
+    memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;  // track number: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // pointer: 0...99
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( u32AbsSectorCounter / 4500u );  // p. minutes: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // p. seconds: 0...59 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // p. frames: 0...74 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+    CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+*/
+   memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
+   ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0xFFFF;
+   ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+   CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+
+
+
+
 
     printf("CD binary converter test\n");
 
@@ -57,7 +87,7 @@ int main()
       // Set P subcode
       memset( sSubcode.au96SubcodeP, 0x00, sizeof( sSubcode.au96SubcodeP ) );
       // Set Q-subcodes
-      if( u32SectorCounter < 15 )
+      if( u32SectorCounter < 75 )
       {
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
@@ -71,7 +101,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // p. seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // p. frames: 0...74 (BCD)
       }
-      else if( u32SectorCounter < 30 )
+      else if( u32SectorCounter < 150 )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0xA0;  // 0xA0 == first information track data
@@ -84,7 +114,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: 0x00 in this case
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  0x00 in this case
       }
-      else if( u32SectorCounter < 45 )
+      else if( u32SectorCounter < 225 )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0xA1;  // 0xA1 == last information track data
@@ -97,7 +127,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: 0x00 in this case
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  0x00 in this case
       }
-      else
+      else if( u32SectorCounter < 300 )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0xA2;  // 0xA0 == beginning of the lead out track
@@ -109,6 +139,19 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) / 4500u );  // p. minutes: 0...99 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) / 75u );  // p. seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) % 75u );  // p. frames: 0...74 (BCD)
+      }
+      else
+      {
+        // Pause
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;  // 0x01 == beginning of the first track
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x00;  // 0x00 == pause
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( u32AbsSectorCounter / 4500u );  // abs. minutes: 0...99 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // abs. seconds: 0...59 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // abs. frames: 0...74 (BCD)
       }
       BinConvert_CDSector2352( au8Sector, au8PitsnLands, &sSubcode );
       fwrite( au8PitsnLands, sizeof( U8 ), sizeof( au8PitsnLands ), fwp );

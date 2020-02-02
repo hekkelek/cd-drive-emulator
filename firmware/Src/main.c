@@ -101,7 +101,7 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
   u32CDPickup += u16ReadBytes;
   if( u32CDPickup > 3*75*7203 )
   {
-    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
+    //HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
   }
   else
   {
@@ -123,7 +123,7 @@ void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
   u32CDPickup += u16ReadBytes;
   if( u32CDPickup > 3*75*7203 )
   {
-    HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
+    //HAL_GPIO_WritePin( SLED_LIMIT_GPIO_Port, SLED_LIMIT_Pin, GPIO_PIN_SET );
   }
   else
   {
@@ -289,7 +289,7 @@ static void MX_I2S2_Init(void)
   hi2s2.Init.Standard = I2S_STANDARD_MSB;
   hi2s2.Init.DataFormat = I2S_DATAFORMAT_16B;
   hi2s2.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
-  hi2s2.Init.AudioFreq = 93713;
+  hi2s2.Init.AudioFreq = 135056;
   hi2s2.Init.CPOL = I2S_CPOL_LOW;
   hi2s2.Init.ClockSource = I2S_CLOCK_PLL;
   hi2s2.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_ENABLE;
