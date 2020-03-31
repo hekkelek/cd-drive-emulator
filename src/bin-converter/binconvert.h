@@ -43,8 +43,7 @@ typedef struct
 //! \brief Structure for Q subcode
 typedef struct
 {
-  U8  u4Control : 4;
-  U8  u4Address : 4;
+  U8  u8ControlMode;  // the control and mode nibbles form a byte
   U8  au8DataQ[ 9 ];
   U16 u16Crc;
 } S_CD_SUBCODE_Q;

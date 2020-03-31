@@ -33,23 +33,25 @@ int main()
 
 
     // CRC test
-/*
     memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;  // track number: 0...99 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // pointer: 0...99
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;  // track number: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // index: 0...99
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = 0x03;//BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = 0x06;//BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = 0x39;//BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
     ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( u32AbsSectorCounter / 4500u );  // p. minutes: 0...99 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // p. seconds: 0...59 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // p. frames: 0...74 (BCD)
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0;
-    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x03;//BCD( u32AbsSectorCounter / 4500u );  // p. minutes: 0...99 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x08;//BCD( u32AbsSectorCounter / 75u );  // p. seconds: 0...59 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x39;//BCD( u32AbsSectorCounter % 75u );  // p. frames: 0...74 (BCD)
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0;//0xFFFF;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should result 0xBA38
     CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
-*/
+
+
+
+
+
    memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0xFFFF;
    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
@@ -89,8 +91,7 @@ int main()
       // Set Q-subcodes
       if( u32SectorCounter < 75 )
       {
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;  // track number: 0...99 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // pointer: 0...99
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
@@ -180,8 +181,7 @@ int main()
           memset( sSubcode.au96SubcodeP, 0x00, sizeof( sSubcode.au96SubcodeP ) );
         }
         // Set Q-subcodes
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;  // track number: 0...99 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // index: 0...99
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
@@ -216,8 +216,7 @@ int main()
         memset( sSubcode.au96SubcodeP, 0x00, sizeof( sSubcode.au96SubcodeP ) );
       }
       // Set Q-subcodes
-      ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Control = 0x0;  // 2 audio channels without pre-emphasis
-      ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u4Address = 0x1;  // mode 1
+      ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0xAA;  // track number: 0...99 (BCD)
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;  // index: 0...99
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)

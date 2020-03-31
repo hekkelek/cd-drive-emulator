@@ -68,11 +68,11 @@
  *********************************************************************/
 U16 CRC_QSubcode( S_CD_SUBCODE_Q* psSubCodeQ )
 {
-  U16 u16CRC = 0xFFFF;
+  U16 u16CRC = 0;
   U8  u8ByteIndex, u8BitIndex;
   U8  u8BitMask, u8Data, u8Flag;
 
-  for( u8ByteIndex = 0; u8ByteIndex < sizeof( S_CD_SUBCODE_Q ); u8ByteIndex++ )
+  for( u8ByteIndex = 0; u8ByteIndex < sizeof( S_CD_SUBCODE_Q )-2; u8ByteIndex++ )
   {
     u8Data = ((U8*)psSubCodeQ)[ u8ByteIndex ];
     u8BitMask = 0x80u;
