@@ -661,8 +661,7 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SU
   AddSubcode( au8CIRCEncoded, psSubcode );
 
   EFMEncoder( au8CIRCEncoded, au8EFMEncoded );
-  //EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames
-  memcpy( pu8ArrayResult, au8EFMEncoded, CD_CHANNEL_FRAME_SIZE );  //FIXME: debug, remove this and uncomment previous line
+  EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames
 }
 
 
