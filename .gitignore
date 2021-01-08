@@ -9,3 +9,5 @@
 /helpertools/crctest/bin
 /helpertools/crctest/obj
 /helpertools/crctest/crctest.depend
+/helpertools/endianswap/obj
+/helpertools/endianswap/bin
