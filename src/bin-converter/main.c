@@ -28,11 +28,12 @@ int main()
     U32 u32Size;
     U32 u32SectorCounter, u32AbsSectorCounter = 0;
     S_CD_SUBCODE sSubcode;
+    U16 u16Crc;
 
 
 
 
-    // CRC test
+    // CRC tests
     memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
     ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
     ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;  // track number: 0...99 (BCD)
@@ -48,15 +49,35 @@ int main()
     ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should result 0xBA38
     CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
 
+    memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = 0x02;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = 0x13;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = 0x25;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x02;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x15;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x25;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0x0000;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should be 0x450F
+    CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
 
-
-
-
-   memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
-   ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0xFFFF;
-   ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
-   CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
-
+    memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x02;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0x0000;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should be 0x5A28
+    CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
 
 
 
@@ -167,6 +188,9 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // abs. seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // abs. frames: 0...74 (BCD)
       }
+      ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0x0000;
+      u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
+      ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = ((u16Crc&0xFF00)>>8) | (((u16Crc&0x00FF)<<8));  //TODO: rewrite so endianness swap won't be necessary
       BinConvert_CDSector2352( au8Sector, au8PitsnLands, &sSubcode );
       fwrite( au8PitsnLands, sizeof( U8 ), sizeof( au8PitsnLands ), fwp );
       u32AbsSectorCounter++;

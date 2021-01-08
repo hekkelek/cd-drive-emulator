@@ -148,6 +148,8 @@ static void MakeF1Sector( U8* pu8ArrayToConvert, U8* pu8ArrayResult )
   U32* pu32Src = (U32*)pu8ArrayToConvert;
   U32* pu32Dst = (U32*)pu8ArrayResult;
 
+  #warning "TODO: ECMA-130 mentions a byte reordering beside swapping even and odd bytes."
+
   // swap even and odd bytes
   for( u32WordIndex = 0; u32WordIndex < CD_RAW_SECTOR_SIZE/sizeof( U32 ); u32WordIndex++ )
   {
@@ -662,6 +664,7 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SU
   CIRCEncoder( au8F1Frames, au8CIRCEncoded );
   AddSubcode( au8CIRCEncoded, psSubcode );
 
+  /*
   printf( "\r\n" );
   for( u16Index = 0; u16Index < sizeof( au8CIRCEncoded); u16Index++ )
   {
@@ -671,7 +674,7 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SU
       printf("\r\n");
     }
   }
-  printf( "\r\n" );
+  printf( "\r\n" );*/
 
   EFMEncoder( au8CIRCEncoded, au8EFMEncoded );
   EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames
