@@ -266,18 +266,19 @@ static void AddSubcode( U8* pu8CIRCSector, S_CD_SUBCODE* psSubcode )
   U8  u8ByteIdx;
   U8  u8BitIdx;
 
+  // Note: SYNC0 and SYNC1 are added in the EFM encoder
   for( u16FrameNum = 2; u16FrameNum < 98; u16FrameNum++ )  // first 2 F3 frames contain the Sync0 and Sync1 codes
   {
     u8ByteIdx = (u16FrameNum-2)/8;
     u8BitIdx  = (u16FrameNum-2)%8;
-    u8Subcode = ( ( ( psSubcode->au96SubcodeP[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<7u )
-              | ( ( ( psSubcode->au96SubcodeQ[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<6u )
-              | ( ( ( psSubcode->au96SubcodeR[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<5u )
-              | ( ( ( psSubcode->au96SubcodeS[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<4u )
-              | ( ( ( psSubcode->au96SubcodeT[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<3u )
-              | ( ( ( psSubcode->au96SubcodeU[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<2u )
-              | ( ( ( psSubcode->au96SubcodeV[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<1u )
-              | ( ( ( psSubcode->au96SubcodeW[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>u8BitIdx )<<0u );
+    u8Subcode = ( ( ( psSubcode->au96SubcodeP[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<7u )
+              | ( ( ( psSubcode->au96SubcodeQ[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<6u )
+              | ( ( ( psSubcode->au96SubcodeR[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<5u )
+              | ( ( ( psSubcode->au96SubcodeS[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<4u )
+              | ( ( ( psSubcode->au96SubcodeT[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<3u )
+              | ( ( ( psSubcode->au96SubcodeU[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<2u )
+              | ( ( ( psSubcode->au96SubcodeV[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<1u )
+              | ( ( ( psSubcode->au96SubcodeW[ u8ByteIdx ] & ( 1<<(7u-u8BitIdx) ) )>>(7u-u8BitIdx) )<<0u );
     pu8CIRCSector[ u16FrameNum*33 ] = u8Subcode;
   }
 }
@@ -652,6 +653,7 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SU
   static U8 au8EFMEncoded[ CD_CHANNEL_FRAME_SIZE ];   // temporary array; won't needed after optimization
   static U8 au8CIRCEncoded[ CD_FRAME_SIZE ];  // temporary array; won't needed after optimization
   static U8 au8F1Frames[ CD_RAW_SECTOR_SIZE ];
+  U16 u16Index;
 
   //NOTE: these two can be merged into one optimized function
   ScrambleSector( pu8ArrayToConvert, pu8ArrayToConvert );  // scramble sector in place
@@ -659,6 +661,17 @@ void BinConvert_CDSector2352( U8* pu8ArrayToConvert, U8* pu8ArrayResult, S_CD_SU
 
   CIRCEncoder( au8F1Frames, au8CIRCEncoded );
   AddSubcode( au8CIRCEncoded, psSubcode );
+
+  printf( "\r\n" );
+  for( u16Index = 0; u16Index < sizeof( au8CIRCEncoded); u16Index++ )
+  {
+    printf( "%.2X ", au8CIRCEncoded[ u16Index ] );
+    if( 15 == u16Index%16 )
+    {
+      printf("\r\n");
+    }
+  }
+  printf( "\r\n" );
 
   EFMEncoder( au8CIRCEncoded, au8EFMEncoded );
   EncodeNRZI( au8EFMEncoded, pu8ArrayResult );  // NRZI encoding of channel frames

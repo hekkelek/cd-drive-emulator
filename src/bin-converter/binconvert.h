@@ -38,7 +38,7 @@ typedef struct
   U8 au96SubcodeU[ 12u ];  //!< U subcode
   U8 au96SubcodeV[ 12u ];  //!< V subcode
   U8 au96SubcodeW[ 12u ];  //!< W subcode
-} S_CD_SUBCODE;
+} __attribute__ ((packed)) S_CD_SUBCODE;
 
 //! \brief Structure for Q subcode
 typedef struct
@@ -46,7 +46,7 @@ typedef struct
   U8  u8ControlMode;  // the control and mode nibbles form a byte
   U8  au8DataQ[ 9 ];
   U16 u16Crc;
-} S_CD_SUBCODE_Q;
+} __attribute__ ((packed)) S_CD_SUBCODE_Q;
 
 
 //--------------------------------------------------------------------------------------------------------/

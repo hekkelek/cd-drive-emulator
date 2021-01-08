@@ -9,24 +9,24 @@ rfproc = sign(rf(1:end));  % rf contains the samples
 % EFM sync pattern
 syncpattern = [1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0]';
 
-% % NRZI decoding with synchronization and filtering
-% bitmatrix = 1;  % this will be used for storing the sampled bits
-% lastbit = start;
-% samplepoints = start;
-% for i = start:(length(rfproc)-1);
-%   if( rfproc(i) ~= rfproc(i+1) )  % if there is an edge
-%     temp = round( (i-lastbit)/bittime );
-%     if( temp >= 1 )  % if it's a valid bit
-%       bitmatrix = cat(1,bitmatrix(1:end),1);
-%       bitmatrix = cat(1,bitmatrix(1:end),zeros(temp-1,1));
-%       samplepoints = cat(1,samplepoints,lastbit);
-%       for n=1:(temp-1);
-%         samplepoints = cat(1,samplepoints, lastbit+n*bittime);
-%       end
-%       lastbit = i;
-%     end
-%   end
-% end
+% NRZI decoding with synchronization and filtering
+bitmatrix = 1;  % this will be used for storing the sampled bits
+lastbit = start;
+samplepoints = start;
+for i = start:(length(rfproc)-1);
+  if( rfproc(i) ~= rfproc(i+1) )  % if there is an edge
+    temp = round( (i-lastbit)/bittime );
+    if( temp >= 1 )  % if it's a valid bit
+      bitmatrix = cat(1,bitmatrix(1:end),1);
+      bitmatrix = cat(1,bitmatrix(1:end),zeros(temp-1,1));
+      samplepoints = cat(1,samplepoints,lastbit);
+      for n=1:(temp-1);
+        samplepoints = cat(1,samplepoints, lastbit+n*bittime);
+      end
+      lastbit = i;
+    end
+  end
+end
 
 % % visualize -- for debug
 % plot(rf(1:end));hold on;
