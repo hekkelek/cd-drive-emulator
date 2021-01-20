@@ -227,9 +227,6 @@ __weak void BSP_SD_GetCardInfo(HAL_SD_CardInfoTypeDef *CardInfo)
   HAL_SD_GetCardInfo(&hsd, CardInfo);
 }
 
-/* USER CODE BEGIN BeforeCallBacksSection */
-/* can be used to modify previous code / undefine following code / add code */
-/* USER CODE END BeforeCallBacksSection */
 /* USER CODE BEGIN CallBacksSection_C */
 /**
   * @brief BSP SD Abort callback
@@ -261,6 +258,9 @@ __weak void BSP_SD_ReadCpltCallback(void)
 
 }
 /* USER CODE END CallBacksSection_C */
+/* USER CODE BEGIN BeforeCallBacksSection */
+/* can be used to modify previous code / undefine following code / add code */
+/* USER CODE END BeforeCallBacksSection */
 /**
   * @brief SD Abort callbacks
   * @param hsd: SD handle
@@ -290,7 +290,6 @@ void HAL_SD_RxCpltCallback(SD_HandleTypeDef *hsd)
 {
   BSP_SD_ReadCpltCallback();
 }
-
 
 #endif
 

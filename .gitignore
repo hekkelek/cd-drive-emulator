@@ -11,3 +11,4 @@
 /helpertools/crctest/crctest.depend
 /helpertools/endianswap/obj
 /helpertools/endianswap/bin
+/firmware/EWARM/CD_emulator.dep

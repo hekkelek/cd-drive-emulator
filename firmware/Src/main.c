@@ -68,9 +68,9 @@ static void MX_I2S2_Init(void);
 FATFS SDCard;
 FIL CDFile;
 
+#pragma data_alignment = 4
 U8  au8PitsnLands[ 10*7203 ];  // CD drive data
 U32 u32CDPickup;
-
 
 // TX completed callback
 void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
