@@ -7,8 +7,8 @@
 #include "crc.h"
 
 
-#define LEAD_IN_SECTORS   500
-#define LEAD_OUT_SECTORS  500
+#define LEAD_IN_SECTORS   4500
+#define LEAD_OUT_SECTORS  6750
 
 
 
@@ -79,6 +79,20 @@ int main()
     ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should be 0x5A28
     CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
 
+    memset( &sSubcode, 0x00u, sizeof( sSubcode ) );
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x41;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x01;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = 0x07;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x00;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x02;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x07;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0x0000;
+    ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );  // should be 0x3F01
+    CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
 
 
 
@@ -111,8 +125,9 @@ int main()
       memset( sSubcode.au96SubcodeP, 0x00, sizeof( sSubcode.au96SubcodeP ) );  // lead-in track is encoded as audio
       // Set Q-subcodes
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u8ControlMode = 0x01;  // 2 audio channels without pre-emphasis, mode 1
-      if( u32SectorCounter < 150 )
+      if( u32SectorCounter > ( LEAD_IN_SECTORS - 150 ) )
       {
+        // Pause
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;  // track number: 0...99 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 1 ] = 0x00;  // pointer: 0 indicating pause
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 2 ] = BCD( u32SectorCounter / 4500u );  // minutes: 0...99 (BCD)
@@ -123,7 +138,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // p. seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // p. frames: 0...74 (BCD)
       }
-      else if( ( u32SectorCounter < 300 ) && ( 2u >= u32SectorCounter % 12u ) )
+      else if( ( 2u >= u32SectorCounter % 12u ) )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;
@@ -136,7 +151,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: 0x00 in this case
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  0x00 in this case
       }
-      else if( ( u32SectorCounter < 300 ) && ( 5u >= u32SectorCounter % 12u ) )
+      else if( ( 5u >= u32SectorCounter % 12u ) )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;
@@ -146,10 +161,10 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x01;  // p. minutes: first track number
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: 0x00 in this case
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  0x00 in this case
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: always 0x00 in this case
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  always 0x00 in this case
       }
-      else if( ( u32SectorCounter < 300 ) && ( 8u >= u32SectorCounter % 12u ) )
+      else if( ( 8u >= u32SectorCounter % 12u ) )
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;
@@ -158,11 +173,11 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = 0x01;  // p. minutes: last track number
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: 0x00 in this case
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  0x00 in this case
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) / 4500u );  // p. minutes: 0...99 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = 0x00;  // p. seconds: always 0x00 in this case
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = 0x00;  // p. frames:  always 0x00 in this case
       }
-      else if( ( u32SectorCounter < 300 ) && ( 11u >= u32SectorCounter % 12u ) )
+      else
       {
         // Table of Contents
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x00;
@@ -171,11 +186,11 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 3 ] = BCD( u32SectorCounter / 75u );  // seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 4 ] = BCD( u32SectorCounter % 75u );  // frames: 0...74 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 5 ] = 0x00;  // zero: should be 0x00
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) / 4500u );  // p. minutes: 0...99 (BCD)
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) / 75u );  // p. seconds: 0...59 (BCD)
-        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS) % 75u );  // p. frames: 0...74 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS+1) / 4500u );  // p. minutes: 0...99 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS+1) / 75u );  // p. seconds: 0...59 (BCD)
+        ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( ((u32Size/2352)+LEAD_IN_SECTORS+1) % 75u );  // p. frames: 0...74 (BCD)
       }
-      else
+/*      else
       {
         // Pause
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 0 ] = 0x01;  // 0x01 == beginning of the first track
@@ -187,7 +202,7 @@ int main()
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 6 ] = BCD( u32AbsSectorCounter / 4500u );  // abs. minutes: 0...99 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 7 ] = BCD( u32AbsSectorCounter / 75u );  // abs. seconds: 0...59 (BCD)
         ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->au8DataQ[ 8 ] = BCD( u32AbsSectorCounter % 75u );  // abs. frames: 0...74 (BCD)
-      }
+      }*/
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = 0x0000;
       u16Crc = CRC_QSubcode( ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ) );
       ((S_CD_SUBCODE_Q*)sSubcode.au96SubcodeQ)->u16Crc = ((u16Crc&0xFF00)>>8) | (((u16Crc&0x00FF)<<8));  //TODO: rewrite so endianness swap won't be necessary
